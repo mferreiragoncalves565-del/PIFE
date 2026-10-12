@@ -138,6 +138,7 @@ const listRooms=()=>Object.values(rooms).map(R=>({code:R.code,lock:!!R.pass,n:R.
 let lt=null;
 function pushRooms(){clearTimeout(lt);lt=setTimeout(()=>{const l=listRooms();wss.clients.forEach(c=>{if(!c.inRoom)rawSend(c,{t:'rooms',list:l})})},150)}
 const cast=(R,o)=>R.players.forEach(p=>p.ws&&rawSend(p.ws,o));
+const sysMsg=(R,text)=>{const e={sys:1,n:'',text};R.chat.push(e);if(R.chat.length>60)R.chat.shift();cast(R,{t:'chat',m:e})};
 
 wss.on('connection',ws=>{
   let R=null,me=null;
@@ -149,11 +150,13 @@ wss.on('connection',ws=>{
     if(!r.started||r.win>=0){
       r.players=r.players.filter(x=>x!==p);
       r.players.sort((a,b)=>!!a.bot-!!b.bot); // anfitrião sempre humano
+      if(r.players.some(x=>!x.bot))sysMsg(r,p.n+' saiu da sala.');
       r.started=false;r.win=-1;r.msg='Aguardando jogadores.';
       if(!r.players.some(x=>!x.bot)){delete rooms[r.code];return pushRooms()}
       return send(r);
     }
     p.ws=null; // no meio da partida: vaga fica reservada e o bot joga até voltar
+    sysMsg(r,p.n+' desconectou. Um bot joga por ele até voltar.');
     if(r.players[r.turn]===p)loop(r);else send(r);
     setTimeout(()=>{if(rooms[r.code]===r&&r.players.every(x=>x.bot||!x.ws)){delete rooms[r.code];pushRooms()}},600000);
   }
@@ -163,7 +166,7 @@ wss.on('connection',ws=>{
       if(R)return;
       const code=String(m.room||'').toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,14);
       if(!code)return err(ws,'Informe um nome para a sala.');
-      let r=rooms[code];
+      let r=rooms[code],fresh=false;
       if(!r){
         if(!m.create)return err(ws,'Essa sala não existe mais.');
         r=rooms[code]={code,pass:clean(m.pass,20),players:[],started:false,win:-1,msg:'Aguardando jogadores.',chat:[]};
@@ -173,10 +176,11 @@ wss.on('connection',ws=>{
         if(r.pass&&clean(m.pass,20)!==r.pass)return err(ws,'Senha incorreta.');
         if(r.started&&r.win<0)return err(ws,'Partida em andamento nessa sala.');
         if(r.players.length>=10)return err(ws,'Mesa cheia (10 lugares).');
-        p={n:clean(m.name,12)||'Jogador',tok:m.tok,ws};r.players.push(p);
+        p={n:clean(m.name,12)||'Jogador',tok:m.tok,ws};r.players.push(p);fresh=true;
       }else{if(p.ws&&p.ws!==ws)p.ws.close();p.ws=ws}
       R=r;me=p;ws.inRoom=true;
       rawSend(ws,{t:'chatlog',log:r.chat});
+      if(fresh)sysMsg(r,p.n+' entrou na sala.');
       if(r.started&&r.win<0&&r.players[r.turn]===p)return loop(r);
       return send(r);
     }

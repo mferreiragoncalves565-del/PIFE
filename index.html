@@ -14,7 +14,7 @@ input[type=text],input[type=password],select,button{font:inherit;border-radius:8
 input[type=text],input[type=password]{background:#f4ead2;color:#1a1a1a;min-width:0}
 button{background:var(--gold);color:#2a1d07;font-weight:700;cursor:pointer}
 button.ghost{background:#ffffff18;color:var(--cream)}
-button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #fff}
+button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus-visible,input:focus-visible{outline:3px solid #fff}
 .word{font:italic 700 64px/1 Georgia,serif;letter-spacing:2px;background:linear-gradient(180deg,#fff0b8,var(--gold) 55%,#a87a1d);-webkit-background-clip:text;background-clip:text;color:transparent;margin:0}
 .hero{text-align:center;padding:14px 0 18px}.hero svg{width:210px;height:140px}.hero p{margin:6px 0 0;color:var(--mute)}
 .cols{display:grid;grid-template-columns:340px 1fr;gap:14px}
@@ -47,8 +47,14 @@ button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visib
 #cl{flex:1;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:5px;padding-right:4px}
 #cl div{background:#ffffff0d;border-radius:8px;padding:4px 8px;overflow-wrap:anywhere}#cl div.me{background:#e5b94e33}#cl b{color:var(--gold)}
 .cf{display:flex;gap:6px;margin-top:8px}.cf input{flex:1}
+.conn{text-align:center;color:var(--mute);margin:0 0 10px}
+.q{cursor:help;color:var(--gold);font-size:13px;user-select:none}
+.hand.ph{align-items:center;color:var(--mute);font-style:italic;text-align:center}
+#cl div.sys{background:none;color:var(--mute);font-style:italic;text-align:center;font-size:13px}
+#cl p{margin:8px 0;text-align:center}
+.invite{margin-bottom:14px;border-color:var(--gold)}.invite input{margin-bottom:4px}
 @media(max-width:820px){.cols,.game{grid-template-columns:1fr}.chat{height:300px}.word{font-size:52px}}
-@media(max-width:560px){.table{height:350px}.seat{min-width:60px;font-size:11px}.c{width:38px;height:56px;font-size:16px}}
+@media(max-width:560px){.table{height:350px}.seat{min-width:60px;font-size:11px}.c{width:38px;height:56px;font-size:16px}.chat{height:240px}.hero svg{width:150px;height:100px}.hero .word{font-size:44px}.bar button{padding:6px 10px}}
 </style>
 </head>
 <body>
@@ -64,6 +70,13 @@ button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visib
 <main>
 <section id="lb">
   <div class="hero"><svg><use href="#lg"/></svg><h1 class="word">Pife</h1><p>O jogo de cartas da turma, agora online. De 2 a 10 jogadores.</p></div>
+  <p class="conn" id="cn">Conectando ao servidor… (pode levar até 1 minuto se ele estiver dormindo)</p>
+  <div class="panel invite" id="inv" hidden>
+    <h2>Você foi convidado para a sala <span id="ic"></span></h2>
+    <label for="inm">Seu nome</label><input type="text" id="inm" maxlength="12" placeholder="Como você quer aparecer">
+    <label for="iw">Senha (se a sala tiver)</label><input type="password" id="iw" maxlength="20">
+    <button id="ij">Entrar na sala</button>
+  </div>
   <div class="cols">
     <div class="panel">
       <h2>Criar uma sala</h2>
@@ -78,10 +91,10 @@ button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visib
 <section id="gm" hidden>
   <div class="head"><svg><use href="#lg"/></svg><span class="word">Pife</span></div>
   <div class="bar">
-    <span>Sala <b id="rc"></b></span>
+    <span>Sala <b id="rc"></b> · <span id="np"></span></span><button class="ghost" id="cp">🔗 Copiar link</button>
     <button id="ab">+ Bot</button><button id="go">Iniciar</button>
-    <label>Ordem <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
-    <label><input type="checkbox" id="st" checked> Modo estudo</label>
+    <label>Ordem <span class="q" title="Como as cartas ficam organizadas na sua mão: na ordem em que você comprou, agrupadas por naipe ou por valor.">ⓘ</span> <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
+    <label><input type="checkbox" id="st" checked> Modo estudo <span class="q" title="Mostra dicas durante a partida: quantas cartas suas já estão em jogos, se vale pegar o descarte e qual carta descartar.">ⓘ</span></label>
     <button class="ghost" id="lv">Sair da sala</button>
   </div>
   <div class="game">
@@ -111,7 +124,7 @@ const view=()=>{$('lb').hidden=inRoom;$('gm').hidden=!inRoom};
 
 function conn(){
   ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host);
-  ws.onopen=()=>{if(joined)send({t:'join',...joined,create:false})};
+  ws.onopen=()=>{$('cn').hidden=true;if(joined)send({t:'join',...joined,create:false})};
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     if(m.t=='rooms'){rooms=m.list;drawRooms()}
@@ -121,13 +134,16 @@ function conn(){
     else if(m.t=='chat'){chat.push(m.m);drawChat()}
     else if(m.t=='state'){S=m;inRoom=true;if(joined){joined.create=false;sessionStorage.joined=JSON.stringify(joined)}view();render()}
   };
-  ws.onclose=()=>setTimeout(conn,2000);
+  ws.onclose=()=>{$('cn').hidden=false;setTimeout(conn,2000)};
 }
-function enter(room,pass,create){
-  const name=$('nm').value.trim()||'Jogador';localStorage.nm=name;
+function enter(room,pass,create,nm){
+  const name=(nm||$('nm').value).trim()||'Jogador';localStorage.nm=name;
   joined={room,name,tok,pass:pass||'',create:!!create};
   send({t:'join',...joined});
 }
+const inv=new URLSearchParams(location.search).get('sala');
+if(inv){$('inv').hidden=false;$('ic').textContent=inv.toUpperCase();$('inm').value=localStorage.nm||''}
+$('ij').onclick=()=>enter(inv,$('iw').value,false,$('inm').value);
 $('cr').onclick=()=>{
   const r=$('rn').value.trim();
   if(!r)return alert('Dê um nome para a sala.');
@@ -153,11 +169,11 @@ function drawChat(){
   const el=$('cl'),mine=S?S.players[S.me].n:'';
   el.innerHTML='';
   chat.forEach(m=>{
-    const d=document.createElement('div');if(m.n==mine)d.className='me';
+    const d=document.createElement('div');if(m.sys){d.className='sys';d.textContent=m.text;el.append(d);return}if(m.n==mine)d.className='me';
     const b=document.createElement('b');b.textContent=m.n+': ';
     d.append(b,document.createTextNode(m.text));el.append(d);
   });
-  el.scrollTop=el.scrollHeight;
+  if(!chat.length)el.innerHTML='<p class="mute">Nenhuma mensagem ainda. Diga olá! 👋</p>';el.scrollTop=el.scrollHeight;
 }
 const sendChat=()=>{const t=$('ci').value.trim();if(t){send({t:'chat',text:t});$('ci').value=''}};
 $('cs').onclick=sendChat;
@@ -169,17 +185,18 @@ const cardH=(c,cls='')=>c.j?`<span class="c j ${cls}">★<small>coringa</small><
 function render(){
   const N=S.players.length,host=S.me==0,over=!S.started||S.win>=0;
   const myTurn=S.started&&S.win<0&&S.turn==S.me;
-  $('rc').textContent=S.code;
+  $('rc').textContent=S.code;$('np').textContent=N+'/10 jogadores';
   $('ab').hidden=!(host&&over&&N<10);
   $('go').hidden=!(host&&over);
   $('go').textContent=S.started?'Jogar de novo':'Iniciar';
-  $('go').disabled=N<2;
+  $('go').disabled=N<2;$('go').title=N<2?'Mínimo de 2 jogadores':'';
   let tb='';
   for(let s=0;s<10;s++){
     const rel=[...Array(N).keys()].find(k=>Math.round(k*10/N)==s),a=s/10*2*Math.PI;
     const k=rel==null?null:(rel+S.me)%N,p=k==null?null:S.players[k];
-    tb+=`<div class="seat ${p?'':'empty'} ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
-      +(p?`${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}${p.off?' (offline)':''}<small>${S.started?p.c+' cartas':'na mesa'}</small>`:'vaga')+'</div>';
+    if(!p)continue;
+    tb+=`<div class="seat ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
+      +`${k==0?'👑 ':''}${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}<small>${S.started?p.c+' cartas'+(p.off?' · ⚪ offline':''):p.bot?'bot':p.off?'⚪ offline':'🟢 online'}</small></div>`;
   }
   if(S.started){
     const can=myTurn&&S.phase=='draw'?'':'disabled';
@@ -188,12 +205,14 @@ function render(){
   }
   $('tb').innerHTML=tb;
   $('mm').textContent=S.msg+(myTurn?(S.phase=='draw'?' Sua vez: compre ou pegue o descarte.':' Escolha uma carta para descartar.'):'');
+  if(!S.started)$('mm').textContent+=' '+(N<2?'Mínimo de 2 jogadores: convide alguém pelo link ou adicione um bot.':host?'Tudo pronto! Clique em Iniciar quando quiser.':'Aguardando o anfitrião (👑 '+S.players[0].n+') iniciar.');
   if(!S.hand.some(c=>c.id==sel)||!myTurn||S.phase!='discard')sel=null;
   const so=+$('so').value,key=c=>c.j?999:so==1?c.s*20+c.r:c.r*10+c.s;
   const hand=so?[...S.hand].sort((a,b)=>key(a)-key(b)):S.hand;
   $('hd').innerHTML=hand.map(c=>`<button class="c ${c.j?'j':c.s==1||c.s==2?'r':''} ${sel==c.id?'sel':''}" data-id="${c.id}">${c.j?'★<small>coringa</small>':RK[c.r]+'<small>'+SU[c.s]+'</small>'}</button>`).join('');
   $('hd').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(myTurn&&S.phase=='discard'){sel=+b.dataset.id;render()}});
   $('dc').disabled=sel==null;
+  $('hd').classList.toggle('ph',!S.started);if(!S.started)$('hd').textContent='Suas cartas aparecem aqui quando a partida começar.';
   $('ml').innerHTML=S.melds?S.melds.map(g=>'<div>'+g.map(c=>cardH(c,'mini')).join('')+'</div>').join(''):'';
   $('in').innerHTML=$('st').checked?(S.win>=0?'Fim da partida. O anfitrião pode clicar em Jogar de novo.':S.hint):'';
   const pk=$('pk'),pd=$('pd');
@@ -203,6 +222,11 @@ $('dc').onclick=()=>{send({t:'discard',id:sel});sel=null};
 $('ab').onclick=()=>send({t:'bot'});
 $('go').onclick=()=>send({t:'start'});
 $('lv').onclick=()=>send({t:'leave'});
+$('cp').onclick=async()=>{
+  const u=location.origin+'/?sala='+encodeURIComponent(S.code),t=u+(joined&&joined.pass?'\nSenha: '+joined.pass:'');
+  try{await navigator.clipboard.writeText(t);$('cp').textContent='✅ Link copiado';setTimeout(()=>$('cp').textContent='🔗 Copiar link',1800)}catch{prompt('Copie o convite:',t)}
+};
+document.querySelectorAll('.q').forEach(q=>q.onclick=()=>alert(q.title));
 $('so').onchange=()=>S&&render();
 $('st').onchange=()=>S&&render();
 view();conn();
