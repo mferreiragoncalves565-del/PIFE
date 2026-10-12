@@ -47,6 +47,10 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
 #cl{flex:1;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:5px;padding-right:4px}
 #cl div{background:#ffffff0d;border-radius:8px;padding:4px 8px;overflow-wrap:anywhere}#cl div.me{background:#e5b94e33}#cl b{color:var(--gold)}
 .cf{display:flex;gap:6px;margin-top:8px}.cf input{flex:1}
+.pot{text-align:center;background:#0007;border-radius:10px;padding:6px 10px;margin:4px 0;color:var(--mute)}.pot b{color:var(--gold)}
+.bet{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;background:#e5b94e1f;border:1px solid #e5b94e66;border-radius:10px;padding:8px 12px;margin:6px 0}
+.bet input{width:90px}.seat.fold{opacity:.45}
+.hist{margin-top:8px;color:var(--mute);font-size:13px}.hist summary{cursor:pointer}.hist p{margin:6px 0;background:#ffffff0d;border-radius:8px;padding:6px 10px}
 .conn{text-align:center;color:var(--mute);margin:0 0 10px}
 .q{cursor:help;color:var(--gold);font-size:13px;user-select:none}
 .hand.ph{align-items:center;color:var(--mute);font-style:italic;text-align:center}
@@ -69,7 +73,7 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
 </symbol></svg>
 <main>
 <section id="lb">
-  <div class="hero"><svg><use href="#lg"/></svg><h1 class="word">Pife</h1><p>O jogo de cartas da turma, agora online. De 2 a 10 jogadores.</p></div>
+  <div class="hero"><svg><use href="#lg"/></svg><h1 class="word">Pife</h1><p>O jogo de cartas da turma, agora online. De 2 a 11 jogadores.</p></div>
   <p class="conn" id="cn">Conectando ao servidor… (pode levar até 1 minuto se ele estiver dormindo)</p>
   <div class="panel invite" id="inv" hidden>
     <h2>Você foi convidado para a sala <span id="ic"></span></h2>
@@ -99,12 +103,15 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
   </div>
   <div class="game">
     <div>
+      <div class="pot" id="pt" hidden></div>
       <div class="table" id="tb"></div>
       <div class="msg" id="mm"></div>
+      <div class="bet" id="bt" hidden></div>
       <div class="melds" id="ml"></div>
       <div class="hand" id="hd"></div>
       <div class="act"><button id="dc" disabled>Descartar</button></div>
       <div class="study" id="in"></div>
+      <details class="hist" id="hs" hidden><summary>Histórico das rodadas</summary><div id="hl"></div></details>
     </div>
     <aside class="chat"><h2>Chat da mesa</h2><div id="cl"></div>
       <div class="cf"><input type="text" id="ci" maxlength="200" placeholder="Escreva uma mensagem"><button id="cs">Enviar</button></div>
@@ -155,12 +162,12 @@ function drawRooms(){
   el.innerHTML='';
   rooms.forEach(r=>{
     const d=document.createElement('div');d.className='room';
-    d.innerHTML=`<div><b></b><small>${r.lock?'🔒 com senha':'🌐 aberta'} · ${r.n}/10 · ${r.playing?'em jogo':'aguardando'}</small></div>`;
+    d.innerHTML=`<div><b></b><small>${r.lock?'🔒 com senha':'🌐 aberta'} · ${r.n}/${r.mp} · ${r.playing?'em jogo':'aguardando'}</small></div>`;
     d.querySelector('b').textContent=r.code;
     const act=document.createElement('div');let pw=null;
     if(r.lock){pw=document.createElement('input');pw.type='password';pw.placeholder='Senha';pw.value=pws[r.code]||'';pw.oninput=()=>pws[r.code]=pw.value;act.append(pw)}
     const b=document.createElement('button');
-    b.textContent=r.playing?'Em jogo':r.n>=10?'Cheia':'Entrar';b.disabled=r.playing||r.n>=10;
+    b.textContent=r.playing?'Em jogo':r.n>=r.mp?'Cheia':'Entrar';b.disabled=r.playing||r.n>=r.mp;
     b.onclick=()=>enter(r.code,pw?pw.value:'');
     act.append(b);d.append(act);el.append(d);
   });
@@ -182,21 +189,24 @@ $('ci').onkeydown=e=>{if(e.key=='Enter')sendChat()};
 const cardH=(c,cls='')=>c.j?`<span class="c j ${cls}">★<small>coringa</small></span>`
   :`<span class="c ${c.s==1||c.s==2?'r':''} ${cls}">${RK[c.r]}<small>${SU[c.s]}</small></span>`;
 
+const brl=v=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const stTxt=p=>S.stage=='bet'?({u:'decidindo…','in':'na disputa',f:'desistiu'}[p.st]||''):p.st=='f'?'desistiu':p.c+' cartas';
+let callV=50;
 function render(){
   const N=S.players.length,host=S.me==0,over=!S.started||S.win>=0;
   const myTurn=S.started&&S.win<0&&S.turn==S.me;
-  $('rc').textContent=S.code;$('np').textContent=N+'/10 jogadores';
-  $('ab').hidden=!(host&&over&&N<10);
+  $('rc').textContent=S.code;$('np').textContent=N+'/'+S.mp+' jogadores';
+  $('ab').hidden=!(host&&over&&N<S.mp);
   $('go').hidden=!(host&&over);
-  $('go').textContent=S.started?'Jogar de novo':'Iniciar';
+  $('go').textContent=S.started?'Nova rodada':'Iniciar';
   $('go').disabled=N<2;$('go').title=N<2?'Mínimo de 2 jogadores':'';
   let tb='';
-  for(let s=0;s<10;s++){
-    const rel=[...Array(N).keys()].find(k=>Math.round(k*10/N)==s),a=s/10*2*Math.PI;
+  const M=S.mp;for(let s=0;s<M;s++){
+    const rel=[...Array(N).keys()].find(k=>Math.round(k*M/N)==s),a=s/M*2*Math.PI;
     const k=rel==null?null:(rel+S.me)%N,p=k==null?null:S.players[k];
     if(!p)continue;
-    tb+=`<div class="seat ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
-      +`${k==0?'👑 ':''}${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}<small>${S.started?p.c+' cartas'+(p.off?' · ⚪ offline':''):p.bot?'bot':p.off?'⚪ offline':'🟢 online'}</small></div>`;
+    tb+=`<div class="seat ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''} ${S.started&&p.st=='f'?'fold':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
+      +`${k==0?'👑 ':''}${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}<small>${S.started?stTxt(p)+(p.off?' · ⚪':''):p.bot?'bot':p.off?'⚪ offline':'🟢 online'}</small><small>saldo ${brl(p.bal)}</small></div>`;
   }
   if(S.started){
     const can=myTurn&&S.phase=='draw'?'':'disabled';
@@ -214,7 +224,28 @@ function render(){
   $('dc').disabled=sel==null;
   $('hd').classList.toggle('ph',!S.started);if(!S.started)$('hd').textContent='Suas cartas aparecem aqui quando a partida começar.';
   $('ml').innerHTML=S.melds?S.melds.map(g=>'<div>'+g.map(c=>cardH(c,'mini')).join('')+'</div>').join(''):'';
-  $('in').innerHTML=$('st').checked?(S.win>=0?'Fim da partida. O anfitrião pode clicar em Jogar de novo.':S.hint):'';
+  $('in').innerHTML=$('st').checked?(S.win>=0?'Fim da rodada. O anfitrião inicia a próxima em "Nova rodada" (entrada de R$ 10,00 para todos).':S.hint):'';
+  $('pt').hidden=!S.started&&!S.carry;
+  $('pt').innerHTML=S.started?`Pote inicial <b>${brl(S.pot0)}</b> · Chamadas <b>${brl(S.calls)}</b> · Prêmio potencial <b>${brl(S.pot0+S.calls)}</b>`
+    :`Acumulado para a próxima rodada: <b>${brl(S.carry)}</b>`;
+  const mine=S.players[S.me].st,bt=$('bt'),bs=S.started&&(S.stage=='bet'||(mine=='f'&&S.win<0));
+  bt.hidden=!bs;
+  if(bs){
+    const key=S.stage+mine+(S.call?S.call.by+':'+S.call.amt:'');
+    if(bt.dataset.k!=key){ // só reconstrói quando algo muda, para não perder o foco do campo
+      bt.dataset.k=key;
+      if(mine=='u'){
+        bt.innerHTML=S.call
+          ?`<span>${esc(S.players[S.call.by].n)} chamou <b>${brl(S.call.amt)}</b>. Você topa?</span><button id="ba">Aceitar (${brl(S.call.amt)})</button><button class="ghost" id="bf">Desistir desta mão</button>`
+          :`<label>Chamar R$ <input type="number" id="bv" min="${S.min}" max="${S.max}" value="${callV}"></label><button id="bc">Chamar</button><button class="ghost" id="bf">Desistir desta mão</button><small>Máximo ${brl(S.max)}. Desistir custa só a entrada.</small>`;
+        if($('bv')){$('bv').oninput=e=>callV=+e.target.value;$('bc').onclick=()=>{const v=Math.floor(+$('bv').value);if(!(v>=S.min&&v<=S.max))return alert('A chamada deve ficar entre '+brl(S.min)+' e '+brl(S.max)+'.');send({t:'call',amt:v})}}
+        if($('ba'))$('ba').onclick=()=>send({t:'accept'});
+        $('bf').onclick=()=>send({t:'fold'});
+      }else bt.textContent=mine=='f'?'Você desistiu desta mão: perde só os '+brl(S.ent)+' da entrada e continua na mesa. Na próxima rodada recebe novas cartas.':'Você está na disputa. Aguardando os outros decidirem…';
+    }
+  }
+  $('hs').hidden=!S.hist.length;
+  $('hl').innerHTML=S.hist.slice().reverse().map(h=>`<p>Rodada ${h.r}: ${h.winner?`🏆 <b>${esc(h.winner)}</b> (${esc(h.how)}) levou ${brl(h.prize)}`:'sem vencedor'} · pote inicial ${brl(h.pot0)} + chamadas ${brl(h.calls)}${h.call?` · chamada de ${esc(h.call.by)}: ${brl(h.call.amt)}`:''}<br><small>Na disputa: ${esc(h.in.join(', ')||'—')} · Desistiram: ${esc(h.fold.join(', ')||'—')}</small></p>`).join('');
   const pk=$('pk'),pd=$('pd');
   if(pk){pk.onclick=()=>send({t:'draw',src:'stock'});pd.onclick=()=>send({t:'draw',src:'disc'})}
 }
