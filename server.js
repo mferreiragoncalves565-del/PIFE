@@ -2,7 +2,8 @@ const http=require('http'),fs=require('fs'),path=require('path'),{WebSocketServe
 const RK=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],SU='♠♥♦♣';
 const name=c=>c.j?'Coringa':RK[c.r]+SU[c.s];
 // ---------- configuração das apostas (valores em R$ inteiros; saldo é só contabilidade, não movimenta dinheiro real) ----------
-const CFG={entry:10,maxCall:210,minCall:1,maxPlayers:11,
+const CFG={entry:10,maxCall:210,minCall:10,chips:[10,30,50,100,210], // valores das fichas (a chamada é uma ficha escolhida)
+  maxPlayers:11,
   botAccepts:true,   // bots aceitam chamadas (false = bots sempre desistem)
   callerPays:true};  // quem chama também coloca o valor da chamada no pote (se alguém aceitar)
 
@@ -108,7 +109,7 @@ function bet(R,i,m){
   else if(m.t=='accept'){if(!R.call)return;p.st='in';R.msg=`${p.n} aceitou a chamada.`}
   else{
     const amt=Math.floor(+m.amt);
-    if(R.call||!(amt>=CFG.minCall&&amt<=CFG.maxCall))return;
+    if(R.call||!CFG.chips.includes(amt))return;
     R.call={by:i,amt};p.st='in';R.msg=`${p.n} chamou R$ ${amt}. Aceitar ou desistir?`;
   }
   betCheck(R);
@@ -176,7 +177,7 @@ function view(R,i){
     hand:R.players[i].h||[],top:R.disc&&topCard(R),stock:R.stock?R.stock.length:0,
     turn:R.turn,phase:R.phase,win:R.win,msg:R.msg,hint:hint(R,i),
     melds:R.win>=0&&!R.fw?part(R.players[R.win].h):null,
-    stage:R.stage||'',call:R.call||null,ent:CFG.entry,min:CFG.minCall,max:CFG.maxCall,mp:CFG.maxPlayers,
+    stage:R.stage||'',call:R.call||null,ent:CFG.entry,min:CFG.minCall,max:CFG.maxCall,chips:CFG.chips,mp:CFG.maxPlayers,
     pot0:R.pot0||0,calls:calls(R)||0,carry:R.carry||0,hist:R.hist.slice(-8)};
 }
 function send(R){
