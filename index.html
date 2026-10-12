@@ -3,24 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pife online</title>
+<title>Pife</title>
 <style>
-:root{--bg:#1c130d;--wood:#7a4a28;--felt:#1d5a4f;--felt2:#14413a;--cream:#f4ead2;--red:#b3262e;--gold:#e5b94e;--mute:#c9bda3}
+:root{--bg:#1c130d;--wood:#7a4a28;--felt:#1d5a4f;--felt2:#14413a;--cream:#f4ead2;--red:#b3262e;--gold:#e5b94e;--mute:#c9bda3;--panel:#2a1d14}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--cream);font:15px/1.4 Georgia,'Times New Roman',serif}
-main{max-width:860px;margin:0 auto;padding:10px}
-h1{font-size:21px;margin:4px 0 8px}
+body{margin:0;background:radial-gradient(ellipse at top,#2b1c12,var(--bg));color:var(--cream);font:15px/1.4 Georgia,'Times New Roman',serif;min-height:100vh}
+main{max-width:1000px;margin:0 auto;padding:10px}
 [hidden]{display:none!important}
-.bar,.join{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;color:var(--mute)}
-input[type=text],select,button{font:inherit;border-radius:8px;border:0;padding:7px 12px}
+input[type=text],input[type=password],select,button{font:inherit;border-radius:8px;border:0;padding:8px 12px}
+input[type=text],input[type=password]{background:#f4ead2;color:#1a1a1a;min-width:0}
 button{background:var(--gold);color:#2a1d07;font-weight:700;cursor:pointer}
-button:disabled{opacity:.4;cursor:default}button:focus-visible{outline:3px solid #fff}
-.table{position:relative;height:430px;border-radius:50%;background:radial-gradient(ellipse,var(--felt),var(--felt2));border:12px solid var(--wood);margin:6px 0 10px}
+button.ghost{background:#ffffff18;color:var(--cream)}
+button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #fff}
+.word{font:italic 700 64px/1 Georgia,serif;letter-spacing:2px;background:linear-gradient(180deg,#fff0b8,var(--gold) 55%,#a87a1d);-webkit-background-clip:text;background-clip:text;color:transparent;margin:0}
+.hero{text-align:center;padding:14px 0 18px}.hero svg{width:210px;height:140px}.hero p{margin:6px 0 0;color:var(--mute)}
+.cols{display:grid;grid-template-columns:340px 1fr;gap:14px}
+.panel{background:var(--panel);border:1px solid #4a3322;border-radius:14px;padding:14px}
+.panel h2{margin:0 0 10px;font-size:17px}
+.panel label{display:block;margin:8px 0 3px;color:var(--mute);font-size:13px}.panel input{width:100%}.panel button{margin-top:12px;width:100%}
+.room{display:flex;gap:10px;justify-content:space-between;align-items:center;background:#ffffff0d;border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.room small{display:block;color:var(--mute)}.room>div:last-child{display:flex;gap:6px}.room input{width:110px;padding:6px 8px}.room button{margin:0;width:auto;padding:6px 14px}
+.mute{color:var(--mute)}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.head svg{width:66px;height:44px}.head .word{font-size:34px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0;color:var(--mute)}
+.game{display:grid;grid-template-columns:1fr 290px;gap:12px}
+.table{position:relative;height:410px;border-radius:50%;background:radial-gradient(ellipse,var(--felt),var(--felt2));border:12px solid var(--wood);margin:6px 0 10px}
 .seat{position:absolute;transform:translate(-50%,-50%);text-align:center;background:#0008;border-radius:10px;padding:4px 8px;min-width:78px;font-size:13px}
 .seat.turn{outline:2px solid var(--gold)}.seat.empty{opacity:.35}.seat.win{background:var(--gold);color:#2a1d07}
 .seat small{display:block;color:var(--mute)}.seat.win small{color:#2a1d07}
 .mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:16px}
-.pile{background:none;padding:0;color:var(--cream);font-size:12px;text-align:center}
+.pile{background:none;padding:0;color:var(--cream);font-size:12px;text-align:center;margin:0;width:auto}
 .msg{text-align:center;min-height:2.6em}
 .c{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:64px;background:var(--cream);color:#1a1a1a;border-radius:6px;font:700 18px/1 Georgia,serif;border:2px solid transparent;padding:0}
 .c small{font-size:17px;font-weight:700}.c.r{color:var(--red)}.c.j{color:#5b2c83}.c.j small{font-size:9px}
@@ -28,62 +40,129 @@ button:disabled{opacity:.4;cursor:default}button:focus-visible{outline:3px solid
 .c.sel{transform:translateY(-12px);border-color:var(--gold)}.c.mini{width:30px;height:44px;font-size:13px}.c.mini small{font-size:12px}
 .hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding-top:14px;min-height:92px}
 .act{display:flex;gap:8px;justify-content:center;margin:6px 0}
-.study{background:#0007;border-radius:10px;padding:8px 12px;color:var(--mute);min-height:2.4em}
-.study b{color:var(--cream)}
+.study{background:#0007;border-radius:10px;padding:8px 12px;color:var(--mute);min-height:2.4em}.study b{color:var(--cream)}
 .melds{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}.melds div{display:flex;gap:3px}
-@media(max-width:560px){.table{height:360px}.seat{min-width:60px;font-size:11px}.c{width:38px;height:56px;font-size:16px}}
+.chat{display:flex;flex-direction:column;background:var(--panel);border:1px solid #4a3322;border-radius:14px;padding:10px;height:560px}
+.chat h2{margin:0 0 6px;font-size:16px}
+#cl{flex:1;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:5px;padding-right:4px}
+#cl div{background:#ffffff0d;border-radius:8px;padding:4px 8px;overflow-wrap:anywhere}#cl div.me{background:#e5b94e33}#cl b{color:var(--gold)}
+.cf{display:flex;gap:6px;margin-top:8px}.cf input{flex:1}
+@media(max-width:820px){.cols,.game{grid-template-columns:1fr}.chat{height:300px}.word{font-size:52px}}
+@media(max-width:560px){.table{height:350px}.seat{min-width:60px;font-size:11px}.c{width:38px;height:56px;font-size:16px}}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="lg" viewBox="0 0 240 160">
+  <circle cx="120" cy="92" r="68" fill="#14413a" stroke="#e5b94e" stroke-width="4"/>
+  <circle cx="120" cy="92" r="58" fill="none" stroke="#e5b94e55" stroke-width="1.5"/>
+  <g font-family="Georgia,serif" font-weight="700" stroke="#2a1d07" stroke-width="2">
+    <g transform="translate(120 138) rotate(-27)"><rect x="-32" y="-96" width="64" height="92" rx="8" fill="#f4ead2"/><text x="-25" y="-76" font-size="17" fill="#1a1a1a" stroke="none">A</text><text y="-36" font-size="40" text-anchor="middle" fill="#1a1a1a" stroke="none">♠</text></g>
+    <g transform="translate(120 138) rotate(27)"><rect x="-32" y="-96" width="64" height="92" rx="8" fill="#f4ead2"/><text x="-25" y="-76" font-size="17" fill="#b3262e" stroke="none">7</text><text y="-36" font-size="40" text-anchor="middle" fill="#b3262e" stroke="none">♥</text></g>
+    <g transform="translate(120 138)"><rect x="-32" y="-96" width="64" height="92" rx="8" fill="#f4ead2"/><text y="-36" font-size="46" text-anchor="middle" fill="#5b2c83" stroke="none">★</text><text y="-14" font-size="9" text-anchor="middle" fill="#5b2c83" stroke="none">coringa</text></g>
+  </g>
+</symbol></svg>
 <main>
-<h1>Pife online</h1>
-<div class="join" id="jn">
-  <input type="text" id="nm" placeholder="Seu nome" maxlength="12">
-  <input type="text" id="rm" placeholder="Código da sala" maxlength="10">
-  <button id="jb">Entrar na sala</button>
-  <span>Quem cria o código primeiro é o anfitrião. Os amigos usam o mesmo código.</span>
-</div>
-<div id="gm" hidden>
+<section id="lb">
+  <div class="hero"><svg><use href="#lg"/></svg><h1 class="word">Pife</h1><p>O jogo de cartas da turma, agora online. De 2 a 10 jogadores.</p></div>
+  <div class="cols">
+    <div class="panel">
+      <h2>Criar uma sala</h2>
+      <label for="nm">Seu nome</label><input type="text" id="nm" maxlength="12" placeholder="Como você quer aparecer">
+      <label for="rn">Nome da sala</label><input type="text" id="rn" maxlength="14" placeholder="Ex.: AMIGOS">
+      <label for="rp">Senha (deixe vazio para sala aberta)</label><input type="password" id="rp" maxlength="20" placeholder="Opcional">
+      <button id="cr">Criar sala</button>
+    </div>
+    <div class="panel"><h2>Salas disponíveis</h2><div id="rl"></div></div>
+  </div>
+</section>
+<section id="gm" hidden>
+  <div class="head"><svg><use href="#lg"/></svg><span class="word">Pife</span></div>
   <div class="bar">
     <span>Sala <b id="rc"></b></span>
-    <button id="cp">Convidar</button>
-    <button id="ab">+ Bot</button>
-    <button id="go">Iniciar</button>
+    <button id="ab">+ Bot</button><button id="go">Iniciar</button>
     <label>Ordem <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
     <label><input type="checkbox" id="st" checked> Modo estudo</label>
+    <button class="ghost" id="lv">Sair da sala</button>
   </div>
-  <div class="table" id="tb"></div>
-  <div class="msg" id="mm"></div>
-  <div class="melds" id="ml"></div>
-  <div class="hand" id="hd"></div>
-  <div class="act"><button id="dc" disabled>Descartar</button></div>
-  <div class="study" id="in"></div>
-</div>
+  <div class="game">
+    <div>
+      <div class="table" id="tb"></div>
+      <div class="msg" id="mm"></div>
+      <div class="melds" id="ml"></div>
+      <div class="hand" id="hd"></div>
+      <div class="act"><button id="dc" disabled>Descartar</button></div>
+      <div class="study" id="in"></div>
+    </div>
+    <aside class="chat"><h2>Chat da mesa</h2><div id="cl"></div>
+      <div class="cf"><input type="text" id="ci" maxlength="200" placeholder="Escreva uma mensagem"><button id="cs">Enviar</button></div>
+    </aside>
+  </div>
+</section>
 </main>
 <script>
 const RK=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],SU='♠♥♦♣',$=id=>document.getElementById(id);
 const tok=sessionStorage.tok||(sessionStorage.tok=Math.random().toString(36).slice(2));
-let ws,S=null,sel=null,joined=null;
-const qs=new URLSearchParams(location.search);
-$('rm').value=qs.get('sala')||'';$('nm').value=localStorage.nm||'';
-
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let ws,S=null,sel=null,rooms=[],chat=[],pws={},inRoom=false;
+let joined=JSON.parse(sessionStorage.joined||'null');
+$('nm').value=localStorage.nm||'';
 const send=o=>ws&&ws.readyState==1&&ws.send(JSON.stringify(o));
+const view=()=>{$('lb').hidden=inRoom;$('gm').hidden=!inRoom};
+
 function conn(){
   ws=new WebSocket((location.protocol=='https:'?'wss://':'ws://')+location.host);
-  ws.onopen=()=>{if(joined)send({t:'join',...joined})};
+  ws.onopen=()=>{if(joined)send({t:'join',...joined,create:false})};
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
-    if(m.t=='err'){joined=null;return alert(m.m)}
-    S=m;$('jn').hidden=true;$('gm').hidden=false;render();
+    if(m.t=='rooms'){rooms=m.list;drawRooms()}
+    else if(m.t=='err'){joined=null;sessionStorage.removeItem('joined');inRoom=false;view();alert(m.m)}
+    else if(m.t=='left'){joined=null;sessionStorage.removeItem('joined');inRoom=false;S=null;view()}
+    else if(m.t=='chatlog'){chat=m.log;drawChat()}
+    else if(m.t=='chat'){chat.push(m.m);drawChat()}
+    else if(m.t=='state'){S=m;inRoom=true;if(joined){joined.create=false;sessionStorage.joined=JSON.stringify(joined)}view();render()}
   };
   ws.onclose=()=>setTimeout(conn,2000);
 }
-$('jb').onclick=()=>{
-  const room=$('rm').value.trim().toUpperCase();
-  if(!room)return alert('Informe o código da sala.');
+function enter(room,pass,create){
   const name=$('nm').value.trim()||'Jogador';localStorage.nm=name;
-  joined={room,name,tok};send({t:'join',...joined});
+  joined={room,name,tok,pass:pass||'',create:!!create};
+  send({t:'join',...joined});
+}
+$('cr').onclick=()=>{
+  const r=$('rn').value.trim();
+  if(!r)return alert('Dê um nome para a sala.');
+  enter(r,$('rp').value,true);
 };
+function drawRooms(){
+  const el=$('rl');
+  if(!rooms.length){el.innerHTML='<p class="mute">Nenhuma sala ainda. Crie a primeira ao lado!</p>';return}
+  el.innerHTML='';
+  rooms.forEach(r=>{
+    const d=document.createElement('div');d.className='room';
+    d.innerHTML=`<div><b></b><small>${r.lock?'🔒 com senha':'🌐 aberta'} · ${r.n}/10 · ${r.playing?'em jogo':'aguardando'}</small></div>`;
+    d.querySelector('b').textContent=r.code;
+    const act=document.createElement('div');let pw=null;
+    if(r.lock){pw=document.createElement('input');pw.type='password';pw.placeholder='Senha';pw.value=pws[r.code]||'';pw.oninput=()=>pws[r.code]=pw.value;act.append(pw)}
+    const b=document.createElement('button');
+    b.textContent=r.playing?'Em jogo':r.n>=10?'Cheia':'Entrar';b.disabled=r.playing||r.n>=10;
+    b.onclick=()=>enter(r.code,pw?pw.value:'');
+    act.append(b);d.append(act);el.append(d);
+  });
+}
+function drawChat(){
+  const el=$('cl'),mine=S?S.players[S.me].n:'';
+  el.innerHTML='';
+  chat.forEach(m=>{
+    const d=document.createElement('div');if(m.n==mine)d.className='me';
+    const b=document.createElement('b');b.textContent=m.n+': ';
+    d.append(b,document.createTextNode(m.text));el.append(d);
+  });
+  el.scrollTop=el.scrollHeight;
+}
+const sendChat=()=>{const t=$('ci').value.trim();if(t){send({t:'chat',text:t});$('ci').value=''}};
+$('cs').onclick=sendChat;
+$('ci').onkeydown=e=>{if(e.key=='Enter')sendChat()};
+
 const cardH=(c,cls='')=>c.j?`<span class="c j ${cls}">★<small>coringa</small></span>`
   :`<span class="c ${c.s==1||c.s==2?'r':''} ${cls}">${RK[c.r]}<small>${SU[c.s]}</small></span>`;
 
@@ -100,7 +179,7 @@ function render(){
     const rel=[...Array(N).keys()].find(k=>Math.round(k*10/N)==s),a=s/10*2*Math.PI;
     const k=rel==null?null:(rel+S.me)%N,p=k==null?null:S.players[k];
     tb+=`<div class="seat ${p?'':'empty'} ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
-      +(p?`${p.n}${k==S.me?' (você)':''}${p.bot?' 🤖':''}${p.off?' (offline)':''}<small>${S.started?p.c+' cartas':'na mesa'}</small>`:'vaga')+'</div>';
+      +(p?`${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}${p.off?' (offline)':''}<small>${S.started?p.c+' cartas':'na mesa'}</small>`:'vaga')+'</div>';
   }
   if(S.started){
     const can=myTurn&&S.phase=='draw'?'':'disabled';
@@ -123,10 +202,10 @@ function render(){
 $('dc').onclick=()=>{send({t:'discard',id:sel});sel=null};
 $('ab').onclick=()=>send({t:'bot'});
 $('go').onclick=()=>send({t:'start'});
-$('cp').onclick=()=>prompt('Copie e envie aos amigos:',location.origin+location.pathname+'?sala='+S.code);
+$('lv').onclick=()=>send({t:'leave'});
 $('so').onchange=()=>S&&render();
 $('st').onchange=()=>S&&render();
-conn();
+view();conn();
 </script>
 </body>
 </html>

@@ -123,6 +123,7 @@ function view(R,i){
     melds:R.win>=0?part(R.players[R.win].h):null};
 }
 function send(R){
+  pushRooms();
   R.players.forEach((p,i)=>{if(p.ws&&p.ws.readyState==1)p.ws.send(JSON.stringify(view(R,i)))});
 }
 
@@ -130,28 +131,62 @@ function send(R){
 const html=fs.readFileSync(path.join(__dirname,'index.html'));
 const server=http.createServer((q,r)=>{r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});r.end(html)});
 const wss=new WebSocketServer({server});
-const err=(ws,m)=>ws.send(JSON.stringify({t:'err',m}));
+const clean=(s,n)=>String(s||'').replace(/[<>&"'`]/g,'').trim().slice(0,n);
+const rawSend=(ws,o)=>{if(ws.readyState==1)ws.send(JSON.stringify(o))};
+const err=(ws,m)=>rawSend(ws,{t:'err',m});
+const listRooms=()=>Object.values(rooms).map(R=>({code:R.code,lock:!!R.pass,n:R.players.length,playing:R.started&&R.win<0}));
+let lt=null;
+function pushRooms(){clearTimeout(lt);lt=setTimeout(()=>{const l=listRooms();wss.clients.forEach(c=>{if(!c.inRoom)rawSend(c,{t:'rooms',list:l})})},150)}
+const cast=(R,o)=>R.players.forEach(p=>p.ws&&rawSend(p.ws,o));
 
 wss.on('connection',ws=>{
   let R=null,me=null;
+  rawSend(ws,{t:'rooms',list:listRooms()});
+  function leave(){
+    if(!R)return;
+    if(me.ws&&me.ws!==ws){R=null;me=null;return} // já reconectou em outra aba/conexão
+    const r=R,p=me;R=null;me=null;ws.inRoom=false;
+    if(!r.started||r.win>=0){
+      r.players=r.players.filter(x=>x!==p);
+      r.players.sort((a,b)=>!!a.bot-!!b.bot); // anfitrião sempre humano
+      r.started=false;r.win=-1;r.msg='Aguardando jogadores.';
+      if(!r.players.some(x=>!x.bot)){delete rooms[r.code];return pushRooms()}
+      return send(r);
+    }
+    p.ws=null; // no meio da partida: vaga fica reservada e o bot joga até voltar
+    if(r.players[r.turn]===p)loop(r);else send(r);
+    setTimeout(()=>{if(rooms[r.code]===r&&r.players.every(x=>x.bot||!x.ws)){delete rooms[r.code];pushRooms()}},600000);
+  }
   ws.on('message',raw=>{
     let m;try{m=JSON.parse(raw)}catch{return}
     if(m.t=='join'){
-      const code=String(m.room||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10);
-      if(!code)return err(ws,'Informe o código da sala.');
-      R=rooms[code]||(rooms[code]={code,players:[],started:false,win:-1,msg:'Aguardando jogadores.'});
-      let p=R.players.find(x=>!x.bot&&x.tok==m.tok);
-      if(p){if(p.ws&&p.ws!==ws)p.ws.close();p.ws=ws}
-      else{
-        if(R.started&&R.win<0){R=null;return err(ws,'Partida em andamento nessa sala.')}
-        if(R.players.length>=10){R=null;return err(ws,'Mesa cheia (10 lugares).')}
-        p={n:String(m.name||'Jogador').slice(0,12),tok:m.tok,ws};R.players.push(p);
-      }
-      me=p;
-      if(R.started&&R.win<0&&R.players[R.turn]===p)return loop(R);
-      return send(R);
+      if(R)return;
+      const code=String(m.room||'').toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,14);
+      if(!code)return err(ws,'Informe um nome para a sala.');
+      let r=rooms[code];
+      if(!r){
+        if(!m.create)return err(ws,'Essa sala não existe mais.');
+        r=rooms[code]={code,pass:clean(m.pass,20),players:[],started:false,win:-1,msg:'Aguardando jogadores.',chat:[]};
+      }else if(m.create)return err(ws,'Já existe uma sala com esse nome.');
+      let p=r.players.find(x=>!x.bot&&x.tok==m.tok);
+      if(!p){
+        if(r.pass&&clean(m.pass,20)!==r.pass)return err(ws,'Senha incorreta.');
+        if(r.started&&r.win<0)return err(ws,'Partida em andamento nessa sala.');
+        if(r.players.length>=10)return err(ws,'Mesa cheia (10 lugares).');
+        p={n:clean(m.name,12)||'Jogador',tok:m.tok,ws};r.players.push(p);
+      }else{if(p.ws&&p.ws!==ws)p.ws.close();p.ws=ws}
+      R=r;me=p;ws.inRoom=true;
+      rawSend(ws,{t:'chatlog',log:r.chat});
+      if(r.started&&r.win<0&&r.players[r.turn]===p)return loop(r);
+      return send(r);
     }
     if(!R||!me)return;
+    if(m.t=='leave'){leave();rawSend(ws,{t:'left'});return rawSend(ws,{t:'rooms',list:listRooms()})}
+    if(m.t=='chat'){
+      const text=String(m.text||'').trim().slice(0,200);if(!text)return;
+      const e={n:me.n,text};R.chat.push(e);if(R.chat.length>60)R.chat.shift();
+      return cast(R,{t:'chat',m:e});
+    }
     const i=R.players.indexOf(me),host=i==0,over=!R.started||R.win>=0;
     if(m.t=='bot'&&host&&over&&R.players.length<10){
       const k=R.players.filter(p=>p.bot).length+1;
@@ -162,13 +197,7 @@ wss.on('connection',ws=>{
       else if(m.t=='discard'&&R.phase=='discard')discard(R,m.id);
     }
   });
-  ws.on('close',()=>{
-    if(!R||!me)return;
-    me.ws=null;
-    if(R.started&&R.win<0&&R.players[R.turn]===me)loop(R);else send(R);
-    const room=R;
-    setTimeout(()=>{if(room.players.every(p=>p.bot||!p.ws))delete rooms[room.code]},600000);
-  });
+  ws.on('close',leave);
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
