@@ -197,6 +197,7 @@ if(process.env.DATABASE_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a
 async function loadDB(){
   if(pool){
     await pool.query('create table if not exists kv(k text primary key,v text not null)');
+    await pool.query('alter table kv enable row level security').catch(()=>{}); // impede leitura pela API pública do Supabase
     const r=await pool.query("select v from kv where k='db'");if(r.rows[0])DB=JSON.parse(r.rows[0].v);
   }else try{DB=JSON.parse(fs.readFileSync(DB_FILE,'utf8'))}catch{}
   DB.wallets=DB.wallets||{};DB.log=DB.log||[];DB.deps=DB.deps||{};
