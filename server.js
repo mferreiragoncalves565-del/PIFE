@@ -308,6 +308,7 @@ function adminHandler(q,r){
 const html=fs.readFileSync(path.join(__dirname,'index.html'));
 let adminHtml='';try{adminHtml=fs.readFileSync(path.join(__dirname,'admin.html'))}catch{}
 const server=http.createServer((q,r)=>{
+  if(q.url=='/health'){r.writeHead(200,{'Content-Type':'application/json'});return r.end(JSON.stringify({ok:1,pix:GATE.on,banco:pool?'postgres':'arquivo',indexComBotaoSaldo:html.includes('id="dp"'),adminAtivo:!!ADMIN_KEY}))}
   if(q.method=='POST'&&q.url.startsWith('/webhook/sigilopay'))return webhook(q,r);
   if(q.url.startsWith('/admin'))return adminHandler(q,r);
   r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});r.end(html)});
