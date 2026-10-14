@@ -192,7 +192,7 @@ const DB_FILE=process.env.DATA_FILE||path.join(__dirname,'data.json');
 let DB={wallets:{},log:[],deps:{}},dbT=null,pool=null;
 if(process.env.DATABASE_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
   const {Pool}=require('pg'),u=process.env.DATABASE_URL;
-  pool=new Pool({connectionString:u,max:3,ssl:/localhost|127\.0\.0\.1/.test(u)?false:{rejectUnauthorized:false}});
+  pool=new Pool({connectionString:u,max:3,connectionTimeoutMillis:10000,ssl:/localhost|127\.0\.0\.1/.test(u)?false:{rejectUnauthorized:false}});
 }
 async function loadDB(){
   if(pool){
@@ -394,4 +394,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
-loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar:',e.message);process.exit(1)});
+loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message);process.exit(1)});
