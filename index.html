@@ -58,6 +58,9 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
 .chip.sm{width:34px;height:34px;font-size:12px;border-width:2px;margin:0 4px;vertical-align:middle}
 .bet input{width:90px}.seat.fold{opacity:.45}
 .hist{margin-top:8px;color:var(--mute);font-size:13px}.hist summary{cursor:pointer}.hist p{margin:6px 0;background:#ffffff0d;border-radius:8px;padding:6px 10px}
+.modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:14px;z-index:9}
+.mbox{background:var(--panel);border:1px solid #4a3322;border-radius:14px;padding:16px;width:min(360px,100%);text-align:center}.mbox button{margin-top:10px;width:100%}.mbox input{width:100%}.mbox img{width:220px;height:220px;background:#fff;border-radius:8px}
+.dq{display:flex;gap:6px;margin-bottom:6px}.dq button{margin:0}
 .conn{text-align:center;color:var(--mute);margin:0 0 10px}
 .q{cursor:help;color:var(--gold);font-size:13px;user-select:none}
 .hand.ph{align-items:center;color:var(--mute);font-style:italic;text-align:center}
@@ -110,7 +113,7 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
 <section id="gm" hidden>
   <div class="head"><svg><use href="#lg"/></svg><span class="word">PIFE<span>CHAMADO</span></span></div>
   <div class="bar">
-    <span>Sala <b id="rc"></b> · <span id="np"></span></span><button class="ghost" id="cp">🔗 Copiar link</button>
+    <span>Sala <b id="rc"></b> · <span id="np"></span></span><button class="ghost" id="cp">🔗 Copiar link</button><button class="ghost" id="dp">💰 Adicionar saldo</button>
     <button id="ab">+ Bot</button><button id="go">Iniciar</button>
     <label>Ordem <span class="q" title="Como as cartas ficam organizadas na sua mão: na ordem em que você comprou, agrupadas por naipe ou por valor.">ⓘ</span> <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
     <label><input type="checkbox" id="st" checked> Modo estudo <span class="q" title="Mostra dicas durante a partida: quantas cartas suas já estão em jogos, se vale pegar o descarte e qual carta descartar.">ⓘ</span></label>
@@ -133,6 +136,10 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
     </aside>
   </div>
 </section>
+<div class="modal" id="dm" hidden><div class="mbox"><h2 style="margin:0 0 8px">Adicionar saldo por Pix</h2>
+  <div id="d1"><div class="dq" id="dq"></div><label class="mute" for="da" style="font-size:13px">Valor (R$)</label><input type="number" id="da" step="1" value="20"><button id="dg">Gerar Pix</button></div>
+  <div id="d2" hidden><img id="dimg" alt="QR Code Pix"><p class="mute" style="margin:6px 0">Escaneie ou use o copia e cola:</p><input type="text" id="dcode" readonly><button id="dcp">Copiar código</button><p class="mute" id="dst">Aguardando pagamento…</p></div>
+  <button class="ghost" id="dx">Fechar</button></div></div>
 </main>
 <script>
 const RK=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],SU='♠♥♦♣',$=id=>document.getElementById(id);
@@ -150,7 +157,9 @@ function conn(){
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     if(m.t=='rooms'){rooms=m.list;drawRooms()}
-    else if(m.t=='note')alert(m.m);
+    else if(m.t=='note'){$('dg').disabled=false;alert(m.m)}
+    else if(m.t=='pix'){$('dg').disabled=false;$('dimg').src=m.img;$('dcode').value=m.code;$('d1').hidden=true;$('d2').hidden=false;$('dst').textContent='Aguardando pagamento de '+brl(m.amount)+'…'}
+    else if(m.t=='paid'){$('dst').textContent='✅ Pix confirmado! Saldo adicionado.';setTimeout(()=>$('dm').hidden=true,2500)}
     else if(m.t=='err'){joined=null;sessionStorage.removeItem('joined');inRoom=false;view();alert(m.m)}
     else if(m.t=='left'){joined=null;sessionStorage.removeItem('joined');inRoom=false;S=null;view()}
     else if(m.t=='chatlog'){chat=m.log;drawChat()}
@@ -280,6 +289,11 @@ $('dc').onclick=()=>{send({t:'discard',id:sel});sel=null};
 $('ab').onclick=()=>send({t:'bot'});
 $('go').onclick=()=>send({t:'start'});
 $('lv').onclick=()=>send({t:'leave'});
+[10,20,50,100].forEach(v=>{const b=document.createElement('button');b.className='ghost';b.textContent=v;b.onclick=()=>$('da').value=v;$('dq').append(b)});
+$('dp').onclick=()=>{if(!S.dep.on)return alert('Depósito por Pix ainda não está ativo. Peça saldo ao administrador.');$('d1').hidden=false;$('d2').hidden=true;$('dm').hidden=false};
+$('dx').onclick=()=>$('dm').hidden=true;
+$('dg').onclick=()=>{const v=+$('da').value;if(!(v>=S.dep.min&&v<=S.dep.max))return alert('Informe um valor entre '+brl(S.dep.min)+' e '+brl(S.dep.max)+'.');$('dg').disabled=true;send({t:'deposit',amount:v})};
+$('dcp').onclick=async()=>{try{await navigator.clipboard.writeText($('dcode').value);$('dcp').textContent='✅ Copiado';setTimeout(()=>$('dcp').textContent='Copiar código',1500)}catch{$('dcode').select()}};
 $('cp').onclick=async()=>{
   const u=location.origin+'/?sala='+encodeURIComponent(S.code),t=u+(joined&&joined.pass?'\nSenha: '+joined.pass:'');
   try{await navigator.clipboard.writeText(t);$('cp').textContent='✅ Link copiado';setTimeout(()=>$('cp').textContent='🔗 Copiar link',1800)}catch{prompt('Copie o convite:',t)}

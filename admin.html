@@ -21,6 +21,7 @@ button{background:var(--gold);color:#2a1d07;font-weight:700;cursor:pointer;margi
     <label for="o">Observação (ex.: Pix recebido 14h)</label><input id="o" maxlength="80">
     <button id="cr">Aplicar</button><p id="ok"></p></div>
   <div class="p"><h2>Carteiras</h2><div id="w"></div></div>
+  <div class="p"><h2>Pix recebidos</h2><div id="dx"></div></div>
   <div class="p"><h2>Últimas movimentações</h2><div id="l"></div></div>
 </div>
 <script>
@@ -34,7 +35,7 @@ function row(parent,left,right){const d=document.createElement('div');d.classNam
 async function load(){
   const s=await api('/admin/api/state');
   $('lg').hidden=true;$('ad').hidden=false;sessionStorage.k=key;
-  $('dl').innerHTML='';$('w').innerHTML='';$('l').innerHTML='';
+  $('dl').innerHTML='';$('w').innerHTML='';$('l').innerHTML='';$('dx').innerHTML='';
   s.wallets.forEach(w=>{
     const o=document.createElement('option');o.value=w.n;$('dl').append(o);
     const b=document.createElement('span');b.textContent=brl(w.bal)+' ';
@@ -43,6 +44,8 @@ async function load(){
     b.append(x);row($('w'),w.n,b);
   });
   if(!s.wallets.length)$('w').innerHTML='<p class="m">Nenhuma carteira ainda. Ela nasce quando o jogador entra pela primeira vez ou quando você adiciona saldo.</p>';
+  (s.deps||[]).forEach(d=>row($('dx'),new Date(d.at).toLocaleString('pt-BR')+' · '+(d.n||'?')+' · '+brl(d.amt)+' · '+d.st+(d.st=='REFUNDED'||d.st=='CHARGED_BACK'?' ⚠ revise o saldo':'')));
+  if(!(s.deps||[]).length)$('dx').innerHTML='<p class="m">Nenhum depósito ainda.</p>';
   s.log.slice().reverse().forEach(e=>{const d=row($('l'),new Date(e.at).toLocaleString('pt-BR')+' · '+e.n+' · '+(e.d>0?'+':'')+brl(e.d)+' → '+brl(e.bal));if(e.note){const m=document.createElement('div');m.className='m';m.textContent=e.note;d.firstChild.after(document.createElement('br'),m)}});
 }
 $('in').onclick=async()=>{key=$('k').value;try{await load()}catch(e){$('e').textContent=e.message}};

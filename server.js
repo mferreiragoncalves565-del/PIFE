@@ -2,7 +2,7 @@ const http=require('http'),fs=require('fs'),path=require('path'),{WebSocketServe
 const RK=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],SU='♠♥♦♣';
 const name=c=>c.j?'Coringa':RK[c.r]+SU[c.s];
 // ---------- configuração das apostas (valores em R$ inteiros; saldo é só contabilidade, não movimenta dinheiro real) ----------
-const CFG={entry:10,maxCall:210,minCall:10,chips:[10,30,50,100,210], // valores das fichas (a chamada é uma ficha escolhida)
+const CFG={entry:10,maxCall:210,minCall:10,minDeposit:10,maxDeposit:1000,chips:[10,30,50,100,210], // valores das fichas (a chamada é uma ficha escolhida)
   maxPlayers:11,
   botAccepts:true,   // bots aceitam chamadas (false = bots sempre desistem)
   callerPays:true};  // quem chama também coloca o valor da chamada no pote (se alguém aceitar)
@@ -177,7 +177,7 @@ function view(R,i){
     hand:R.players[i].h||[],top:R.disc&&topCard(R),stock:R.stock?R.stock.length:0,
     turn:R.turn,phase:R.phase,win:R.win,msg:R.msg,hint:hint(R,i),
     melds:R.win>=0&&!R.fw?part(R.players[R.win].h):null,
-    stage:R.stage||'',call:R.call||null,ent:CFG.entry,min:CFG.minCall,max:CFG.maxCall,chips:CFG.chips,mp:CFG.maxPlayers,
+    stage:R.stage||'',call:R.call||null,ent:CFG.entry,min:CFG.minCall,max:CFG.maxCall,chips:CFG.chips,dep:{on:GATE.on,min:CFG.minDeposit,max:CFG.maxDeposit},mp:CFG.maxPlayers,
     pot0:R.pot0||0,calls:calls(R)||0,carry:R.carry||0,hist:R.hist.slice(-8)};
 }
 function send(R){
@@ -189,9 +189,25 @@ function send(R){
 // ---------- carteiras (saldo) ----------
 const crypto=require('crypto'),ADMIN_KEY=process.env.ADMIN_KEY||'';
 const DB_FILE=process.env.DATA_FILE||path.join(__dirname,'data.json');
-let DB={wallets:{},log:[]};try{DB=JSON.parse(fs.readFileSync(DB_FILE,'utf8'))}catch{}
-let dbT=null;
-const save=()=>{clearTimeout(dbT);dbT=setTimeout(()=>{try{fs.writeFileSync(DB_FILE+'.tmp',JSON.stringify(DB));fs.renameSync(DB_FILE+'.tmp',DB_FILE)}catch(e){console.error('Erro ao salvar:',e.message)}},300)};
+let DB={wallets:{},log:[],deps:{}},dbT=null,pool=null;
+if(process.env.DATABASE_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
+  const {Pool}=require('pg'),u=process.env.DATABASE_URL;
+  pool=new Pool({connectionString:u,max:3,ssl:/localhost|127\.0\.0\.1/.test(u)?false:{rejectUnauthorized:false}});
+}
+async function loadDB(){
+  if(pool){
+    await pool.query('create table if not exists kv(k text primary key,v text not null)');
+    const r=await pool.query("select v from kv where k='db'");if(r.rows[0])DB=JSON.parse(r.rows[0].v);
+  }else try{DB=JSON.parse(fs.readFileSync(DB_FILE,'utf8'))}catch{}
+  DB.wallets=DB.wallets||{};DB.log=DB.log||[];DB.deps=DB.deps||{};
+}
+async function flush(){
+  clearTimeout(dbT);const t=JSON.stringify(DB);
+  if(pool)await pool.query("insert into kv(k,v) values('db',$1) on conflict(k) do update set v=excluded.v",[t]);
+  else{fs.writeFileSync(DB_FILE+'.tmp',t);fs.renameSync(DB_FILE+'.tmp',DB_FILE)}
+}
+const save=()=>{clearTimeout(dbT);dbT=setTimeout(()=>flush().catch(e=>console.error('Erro ao salvar:',e.message)),300)};
+process.on('SIGTERM',()=>flush().catch(()=>{}).finally(()=>process.exit(0)));
 const hp=(pin,salt=crypto.randomBytes(8).toString('hex'))=>salt+':'+crypto.scryptSync(pin,salt,32).toString('hex');
 function auth(name,pin){ // nome + PIN = carteira; primeiro acesso define o PIN
   const key=name.toLowerCase();let w=DB.wallets[key];
@@ -203,6 +219,62 @@ function auth(name,pin){ // nome + PIN = carteira; primeiro acesso define o PIN
   w.fail=(w.fail||0)+1;if(w.fail>=5){w.until=Date.now()+60000;w.fail=0}save();
   return 'PIN incorreto para esse nome.';
 }
+// ---------- depósito por Pix (SigiloPay) ----------
+const E=process.env,GATE={base:E.SIGILO_BASE||'https://app.sigilopay.com.br/api/v1',pub:E.SIGILO_PUBLIC_KEY||'',sec:E.SIGILO_SECRET_KEY||'',
+  url:(E.PUBLIC_URL||'').replace(/\/$/,''),wsec:E.WEBHOOK_SECRET||'',tok:E.SIGILO_WEBHOOK_TOKEN||''};
+GATE.on=!!(GATE.pub&&GATE.sec&&GATE.url&&GATE.wsec);
+const QRCode=require('qrcode'),r2=v=>Math.round(v*100)/100;
+function strings(o,d=0,out=[]){if(d>7||o==null)return out;if(typeof o=='string')out.push(o);else if(typeof o=='object')for(const k in o)strings(o[k],d+1,out);return out}
+async function createPix(amount,identifier){
+  const r=await fetch(GATE.base+'/gateway/pix/deposit',{method:'POST',signal:AbortSignal.timeout(15000),
+    headers:{'Content-Type':'application/json','x-public-key':GATE.pub,'x-secret-key':GATE.sec},
+    body:JSON.stringify({amount,identifier,callbackUrl:GATE.url+'/webhook/sigilopay?s='+encodeURIComponent(GATE.wsec)})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){console.error('SigiloPay',r.status,JSON.stringify(j).slice(0,500));throw new Error(j.message||'Gateway respondeu '+r.status)}
+  return j;
+}
+async function deposit(p,ws,m){
+  if(!GATE.on)return note(p,'Depósito por Pix ainda não está ativo. Peça saldo ao administrador.');
+  const amt=r2(+m.amount),key=p.wal.n.toLowerCase();
+  if(!(amt>=CFG.minDeposit&&amt<=CFG.maxDeposit))return note(p,`Informe um valor entre R$ ${CFG.minDeposit} e R$ ${CFG.maxDeposit}.`);
+  if(Object.values(DB.deps).filter(d=>d.w==key&&d.st=='PENDING'&&Date.now()-d.at<3600e3).length>=3)return note(p,'Você já tem 3 Pix pendentes. Pague um deles ou aguarde 1 hora.');
+  const id=crypto.randomUUID();
+  try{
+    const j=await createPix(amt,id);
+    const code=strings(j).filter(x=>x.startsWith('000201')).sort((a,b)=>b.length-a.length)[0];
+    if(!code){console.error('Resposta sem código Pix:',JSON.stringify(j).slice(0,500));throw new Error('Resposta inesperada do gateway.')}
+    DB.deps[id]={w:key,amt,tid:String(j.transactionId||''),st:'PENDING',at:Date.now()};save();
+    rawSend(ws,{t:'pix',amount:amt,code,img:await QRCode.toDataURL(code,{margin:1,width:280})});
+  }catch(e){console.error('Pix:',e.message);note(p,'Não foi possível gerar o Pix agora: '+e.message)}
+}
+function tellWallet(w,text,paid){
+  Object.values(rooms).forEach(R=>{const ps=R.players.filter(p=>p.wal===w);if(!ps.length)return;
+    ps.forEach(p=>paid&&p.ws&&rawSend(p.ws,{t:'paid',amt:paid}));sysMsg(R,text);send(R)});
+}
+function onHook(m){
+  if(GATE.tok&&m.token!==GATE.tok)return console.error('Webhook com token inválido');
+  const ev=String(m.event||''),ids=new Set(strings(m));
+  const id=Object.keys(DB.deps).find(k=>ids.has(k)||(DB.deps[k].tid&&ids.has(DB.deps[k].tid)));
+  if(!id)return console.log('Webhook sem depósito correspondente:',ev);
+  const d=DB.deps[id],w=DB.wallets[d.w];
+  if(ev=='TRANSACTION_PAID'){
+    if(d.st=='PAID'||d.st=='REFUNDED'||d.st=='CHARGED_BACK')return; // crédito único
+    d.st='PAID';d.paidAt=Date.now();w.bal=r2(w.bal+d.amt);
+    DB.log.push({at:Date.now(),n:w.n,d:d.amt,bal:w.bal,note:'Depósito Pix '+d.tid});if(DB.log.length>500)DB.log.shift();
+    flush().catch(e=>console.error('Erro ao salvar:',e.message));
+    tellWallet(w,`${w.n} adicionou saldo via Pix: +R$ ${d.amt}.`,d.amt);
+  }else if(ev=='TRANSACTION_CANCELED'){if(d.st=='PENDING'){d.st='CANCELED';save()}}
+  else if(ev=='TRANSACTION_REFUNDED'||ev=='TRANSACTION_CHARGED_BACK'){
+    d.st=ev=='TRANSACTION_REFUNDED'?'REFUNDED':'CHARGED_BACK';
+    DB.log.push({at:Date.now(),n:w.n,d:0,bal:w.bal,note:`ATENÇÃO: ${d.st} no Pix de R$ ${d.amt} (${d.tid}). Revise o saldo.`});save();
+  }
+}
+function webhook(q,r){
+  const s=new URL(q.url,'http://x').searchParams.get('s')||'';
+  if(!GATE.wsec||s.length!=GATE.wsec.length||!crypto.timingSafeEqual(Buffer.from(s),Buffer.from(GATE.wsec))){r.writeHead(401);return r.end()}
+  let b='';q.on('data',d=>{b+=d;if(b.length>2e5)q.destroy()});
+  q.on('end',()=>{r.writeHead(200);r.end('ok');let m;try{m=JSON.parse(b)}catch{return}try{onHook(m)}catch(e){console.error('Webhook:',e)}});
+}
 function adminHandler(q,r){
   const J=(c,o)=>{r.writeHead(c,{'Content-Type':'application/json'});r.end(JSON.stringify(o))};
   if(!ADMIN_KEY){r.writeHead(404);return r.end('Admin desativado: defina a variável ADMIN_KEY no servidor.')}
@@ -211,7 +283,7 @@ function adminHandler(q,r){
   const k=String(q.headers['x-admin-key']||'');
   const ok=k.length==ADMIN_KEY.length&&crypto.timingSafeEqual(Buffer.from(k),Buffer.from(ADMIN_KEY));
   if(!ok)return setTimeout(()=>J(401,{e:'Chave incorreta.'}),600);
-  if(q.method=='GET'&&u=='/admin/api/state')return J(200,{wallets:Object.values(DB.wallets).map(w=>({n:w.n,bal:w.bal,pin:!!w.pin})).sort((a,b)=>a.n.localeCompare(b.n)),log:DB.log.slice(-40)});
+  if(q.method=='GET'&&u=='/admin/api/state')return J(200,{wallets:Object.values(DB.wallets).map(w=>({n:w.n,bal:w.bal,pin:!!w.pin})).sort((a,b)=>a.n.localeCompare(b.n)),log:DB.log.slice(-40),deps:Object.values(DB.deps).map(d=>({n:(DB.wallets[d.w]||{}).n,amt:d.amt,st:d.st,at:d.at})).sort((a,b)=>b.at-a.at).slice(0,30)});
   if(q.method!='POST')return J(404,{e:'Não encontrado.'});
   let b='';q.on('data',d=>{b+=d;if(b.length>5000)q.destroy()});
   q.on('end',()=>{
@@ -235,6 +307,7 @@ function adminHandler(q,r){
 const html=fs.readFileSync(path.join(__dirname,'index.html'));
 let adminHtml='';try{adminHtml=fs.readFileSync(path.join(__dirname,'admin.html'))}catch{}
 const server=http.createServer((q,r)=>{
+  if(q.method=='POST'&&q.url.startsWith('/webhook/sigilopay'))return webhook(q,r);
   if(q.url.startsWith('/admin'))return adminHandler(q,r);
   r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});r.end(html)});
 const wss=new WebSocketServer({server});
@@ -295,6 +368,7 @@ wss.on('connection',ws=>{
       return send(r);
     }
     if(!R||!me)return;
+    if(m.t=='deposit')return deposit(me,ws,m);
     if(m.t=='leave'){leave();rawSend(ws,{t:'left'});return rawSend(ws,{t:'rooms',list:listRooms()})}
     if(m.t=='chat'){
       const text=String(m.text||'').trim().slice(0,200);if(!text)return;
@@ -320,4 +394,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
-server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT));
+loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar:',e.message);process.exit(1)});
