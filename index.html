@@ -90,6 +90,7 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
   <div class="panel invite" id="inv" hidden>
     <h2>Você foi convidado para a sala <span id="ic"></span></h2>
     <label for="inm">Seu nome</label><input type="text" id="inm" maxlength="12" placeholder="Como você quer aparecer">
+    <label for="ipn">PIN da sua carteira</label><input type="password" id="ipn" maxlength="12">
     <label for="iw">Senha (se a sala tiver)</label><input type="password" id="iw" maxlength="20">
     <button id="ij">Entrar na sala</button>
   </div>
@@ -97,8 +98,10 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
     <div class="panel">
       <h2>Criar uma sala</h2>
       <label for="nm">Seu nome</label><input type="text" id="nm" maxlength="12" placeholder="Como você quer aparecer">
+      <label for="pn">PIN da sua carteira (4 a 12 caracteres)</label><input type="password" id="pn" maxlength="12" placeholder="Crie ou digite seu PIN">
       <label for="rn">Nome da sala</label><input type="text" id="rn" maxlength="14" placeholder="Ex.: AMIGOS">
       <label for="rp">Senha (deixe vazio para sala aberta)</label><input type="password" id="rp" maxlength="20" placeholder="Opcional">
+      <p class="mute" style="font-size:12px;margin:10px 0 0">Seu nome + PIN formam sua carteira. O saldo é adicionado pelo administrador.</p>
       <button id="cr">Criar sala</button>
     </div>
     <div class="panel"><h2>Salas disponíveis</h2><div id="rl"></div></div>
@@ -147,6 +150,7 @@ function conn(){
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     if(m.t=='rooms'){rooms=m.list;drawRooms()}
+    else if(m.t=='note')alert(m.m);
     else if(m.t=='err'){joined=null;sessionStorage.removeItem('joined');inRoom=false;view();alert(m.m)}
     else if(m.t=='left'){joined=null;sessionStorage.removeItem('joined');inRoom=false;S=null;view()}
     else if(m.t=='chatlog'){chat=m.log;drawChat()}
@@ -155,14 +159,16 @@ function conn(){
   };
   ws.onclose=()=>{$('cn').hidden=false;setTimeout(conn,2000)};
 }
-function enter(room,pass,create,nm){
+function enter(room,pass,create,nm,pn){
   const name=(nm||$('nm').value).trim()||'Jogador';localStorage.nm=name;
-  joined={room,name,tok,pass:pass||'',create:!!create};
+  const pin=(pn||$('pn').value).trim();
+  if(pin.length<4)return alert('Digite seu PIN (4 a 12 caracteres). Nome + PIN formam sua carteira.');
+  joined={room,name,tok,pass:pass||'',create:!!create,pin};
   send({t:'join',...joined});
 }
 const inv=new URLSearchParams(location.search).get('sala');
 if(inv){$('inv').hidden=false;$('ic').textContent=inv.toUpperCase();$('inm').value=localStorage.nm||''}
-$('ij').onclick=()=>enter(inv,$('iw').value,false,$('inm').value);
+$('ij').onclick=()=>enter(inv,$('iw').value,false,$('inm').value,$('ipn').value);
 $('cr').onclick=()=>{
   const r=$('rn').value.trim();
   if(!r)return alert('Dê um nome para a sala.');
@@ -244,7 +250,7 @@ function render(){
   const mine=S.players[S.me].st,bt=$('bt'),bs=S.started&&(S.stage=='bet'||(mine=='f'&&S.win<0));
   bt.hidden=!bs;
   if(bs){
-    const key=S.stage+mine+(S.call?S.call.by+':'+S.call.amt:'');
+    const key=S.stage+mine+(S.call?S.call.by+':'+S.call.amt:'')+'|'+S.players[S.me].bal;
     if(bt.dataset.k!=key){ // só reconstrói quando algo muda, para não perder o foco do campo
       bt.dataset.k=key;
       if(mine=='u'){
@@ -252,11 +258,15 @@ function render(){
           ?`<span>${esc(S.players[S.call.by].n)} chamou ${chipH(S.call.amt,Math.max(0,S.chips.indexOf(S.call.amt)),'span','sm')} <b>${brl(S.call.amt)}</b>. Você topa?</span><button id="ba">Aceitar (${brl(S.call.amt)})</button><button class="ghost" id="bf">Desistir desta mão</button>`
           :`<span>Escolha sua ficha:</span><div class="chips">${S.chips.map((v,i)=>chipH(v,i,'button',v==(S.chips.includes(callV)?callV:S.chips[0])?'on':'')).join('')}</div><button id="bc">Chamar</button><button class="ghost" id="bf">Desistir desta mão</button><small>Fichas de ${brl(S.min)} até ${brl(S.max)}. Desistir custa só a entrada.</small>`;
         if($('bc')){
-          if(!S.chips.includes(callV))callV=S.chips[0];
+          const bal=S.players[S.me].bal,okc=S.chips.filter(v=>v<=bal);
+          bt.querySelectorAll('button.chip').forEach(b=>b.disabled=+b.dataset.v>bal);
+          if(!okc.includes(callV))callV=okc.length?okc[0]:0;
+          bt.querySelectorAll('button.chip').forEach(b=>b.classList.toggle('on',+b.dataset.v==callV));
+          $('bc').disabled=!okc.length;
           bt.querySelectorAll('button.chip').forEach(b=>b.onclick=()=>{callV=+b.dataset.v;bt.querySelectorAll('button.chip').forEach(x=>x.classList.toggle('on',x==b))});
           $('bc').onclick=()=>send({t:'call',amt:callV});
         }
-        if($('ba'))$('ba').onclick=()=>send({t:'accept'});
+        if($('ba')){$('ba').disabled=S.players[S.me].bal<S.call.amt;$('ba').onclick=()=>send({t:'accept'})}
         $('bf').onclick=()=>send({t:'fold'});
       }else bt.textContent=mine=='f'?'Você desistiu desta mão: perde só os '+brl(S.ent)+' da entrada e continua na mesa. Na próxima rodada recebe novas cartas.':'Você está na disputa. Aguardando os outros decidirem…';
     }

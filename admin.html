@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · Pife Chamado</title>
+<style>
+:root{--bg:#1c130d;--cream:#f4ead2;--gold:#e5b94e;--mute:#c9bda3;--panel:#2a1d14}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font:15px/1.4 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:14px}h1{font-size:22px;color:var(--gold)}h2{font-size:16px;margin:0 0 8px}
+.p{background:var(--panel);border:1px solid #4a3322;border-radius:12px;padding:14px;margin-bottom:12px}
+label{display:block;margin:8px 0 3px;color:var(--mute);font-size:13px}
+input,button{font:inherit;border:0;border-radius:8px;padding:8px 12px}input{width:100%;background:var(--cream);color:#111}
+button{background:var(--gold);color:#2a1d07;font-weight:700;cursor:pointer;margin-top:10px}button.g{background:#ffffff18;color:var(--cream);margin:0;padding:4px 10px;font-weight:400}
+.r{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #ffffff14}
+.m{color:var(--mute);font-size:13px}#e{color:#ff8a8a;min-height:1.2em}#ok{color:#8fe3a0;min-height:1.2em}
+</style></head><body><main>
+<h1>Admin · Pife Chamado</h1>
+<div class="p" id="lg"><label for="k">Chave de administrador</label><input type="password" id="k"><button id="in">Entrar</button><p id="e"></p></div>
+<div id="ad" hidden>
+  <div class="p"><h2>Adicionar ou remover saldo</h2>
+    <label for="n">Jogador (mesmo nome que ele usa no jogo)</label><input id="n" list="dl" autocomplete="off"><datalist id="dl"></datalist>
+    <label for="a">Valor em R$ (use negativo para remover, ex.: saque pago)</label><input id="a" type="number" step="1">
+    <label for="o">Observação (ex.: Pix recebido 14h)</label><input id="o" maxlength="80">
+    <button id="cr">Aplicar</button><p id="ok"></p></div>
+  <div class="p"><h2>Carteiras</h2><div id="w"></div></div>
+  <div class="p"><h2>Últimas movimentações</h2><div id="l"></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id),brl=v=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
+let key=sessionStorage.k||'';
+async function api(path,body){
+  const r=await fetch(path,{method:body?'POST':'GET',headers:{'x-admin-key':key,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.e||'Erro');return j;
+}
+function row(parent,left,right){const d=document.createElement('div');d.className='r';const a=document.createElement('span');a.textContent=left;d.append(a);if(right)d.append(right);parent.append(d);return d}
+async function load(){
+  const s=await api('/admin/api/state');
+  $('lg').hidden=true;$('ad').hidden=false;sessionStorage.k=key;
+  $('dl').innerHTML='';$('w').innerHTML='';$('l').innerHTML='';
+  s.wallets.forEach(w=>{
+    const o=document.createElement('option');o.value=w.n;$('dl').append(o);
+    const b=document.createElement('span');b.textContent=brl(w.bal)+' ';
+    const x=document.createElement('button');x.className='g';x.textContent=w.pin?'Redefinir PIN':'sem PIN';x.disabled=!w.pin;
+    x.onclick=async()=>{if(confirm('Redefinir o PIN de '+w.n+'? Ele criará um novo no próximo acesso.')){await api('/admin/api/resetpin',{name:w.n});load()}};
+    b.append(x);row($('w'),w.n,b);
+  });
+  if(!s.wallets.length)$('w').innerHTML='<p class="m">Nenhuma carteira ainda. Ela nasce quando o jogador entra pela primeira vez ou quando você adiciona saldo.</p>';
+  s.log.slice().reverse().forEach(e=>{const d=row($('l'),new Date(e.at).toLocaleString('pt-BR')+' · '+e.n+' · '+(e.d>0?'+':'')+brl(e.d)+' → '+brl(e.bal));if(e.note){const m=document.createElement('div');m.className='m';m.textContent=e.note;d.firstChild.after(document.createElement('br'),m)}});
+}
+$('in').onclick=async()=>{key=$('k').value;try{await load()}catch(e){$('e').textContent=e.message}};
+$('cr').onclick=async()=>{
+  $('ok').textContent='';
+  try{const j=await api('/admin/api/credit',{name:$('n').value,amount:+$('a').value,note:$('o').value});$('ok').textContent=j.n+' agora tem '+brl(j.bal);$('a').value='';$('o').value='';load()}
+  catch(e){$('ok').textContent='';alert(e.message)}
+};
+if(key)load().catch(()=>{});
+</script></body></html>

@@ -106,10 +106,10 @@ function betCheck(R){
 function bet(R,i,m){
   const p=R.players[i];
   if(m.t=='fold'){p.st='f';R.msg=`${p.n} desistiu desta mão.`}
-  else if(m.t=='accept'){if(!R.call)return;p.st='in';R.msg=`${p.n} aceitou a chamada.`}
+  else if(m.t=='accept'){if(!R.call)return;if(p.bal<R.call.amt)return note(p,'Saldo insuficiente para aceitar. Você pode desistir desta mão.');p.st='in';R.msg=`${p.n} aceitou a chamada.`}
   else{
     const amt=Math.floor(+m.amt);
-    if(R.call||!CFG.chips.includes(amt))return;
+    if(R.call||!CFG.chips.includes(amt))return;if(p.bal<amt)return note(p,'Saldo insuficiente para essa ficha.');
     R.call={by:i,amt};p.st='in';R.msg=`${p.n} chamou R$ ${amt}. Aceitar ou desistir?`;
   }
   betCheck(R);
@@ -186,11 +186,61 @@ function send(R){
 }
 
 // ---------- servidor ----------
+// ---------- carteiras (saldo) ----------
+const crypto=require('crypto'),ADMIN_KEY=process.env.ADMIN_KEY||'';
+const DB_FILE=process.env.DATA_FILE||path.join(__dirname,'data.json');
+let DB={wallets:{},log:[]};try{DB=JSON.parse(fs.readFileSync(DB_FILE,'utf8'))}catch{}
+let dbT=null;
+const save=()=>{clearTimeout(dbT);dbT=setTimeout(()=>{try{fs.writeFileSync(DB_FILE+'.tmp',JSON.stringify(DB));fs.renameSync(DB_FILE+'.tmp',DB_FILE)}catch(e){console.error('Erro ao salvar:',e.message)}},300)};
+const hp=(pin,salt=crypto.randomBytes(8).toString('hex'))=>salt+':'+crypto.scryptSync(pin,salt,32).toString('hex');
+function auth(name,pin){ // nome + PIN = carteira; primeiro acesso define o PIN
+  const key=name.toLowerCase();let w=DB.wallets[key];
+  if(w&&w.until>Date.now())return 'Muitas tentativas erradas. Aguarde 1 minuto.';
+  if(!w)w=DB.wallets[key]={n:name,pin:null,bal:0};
+  if(!w.pin){w.pin=hp(pin);save();return w}
+  const[s,h]=w.pin.split(':');
+  if(crypto.timingSafeEqual(Buffer.from(h,'hex'),crypto.scryptSync(pin,s,32))){w.fail=0;return w}
+  w.fail=(w.fail||0)+1;if(w.fail>=5){w.until=Date.now()+60000;w.fail=0}save();
+  return 'PIN incorreto para esse nome.';
+}
+function adminHandler(q,r){
+  const J=(c,o)=>{r.writeHead(c,{'Content-Type':'application/json'});r.end(JSON.stringify(o))};
+  if(!ADMIN_KEY){r.writeHead(404);return r.end('Admin desativado: defina a variável ADMIN_KEY no servidor.')}
+  const u=q.url.split('?')[0];
+  if(q.method=='GET'&&(u=='/admin'||u=='/admin/')){r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return r.end(adminHtml)}
+  const k=String(q.headers['x-admin-key']||'');
+  const ok=k.length==ADMIN_KEY.length&&crypto.timingSafeEqual(Buffer.from(k),Buffer.from(ADMIN_KEY));
+  if(!ok)return setTimeout(()=>J(401,{e:'Chave incorreta.'}),600);
+  if(q.method=='GET'&&u=='/admin/api/state')return J(200,{wallets:Object.values(DB.wallets).map(w=>({n:w.n,bal:w.bal,pin:!!w.pin})).sort((a,b)=>a.n.localeCompare(b.n)),log:DB.log.slice(-40)});
+  if(q.method!='POST')return J(404,{e:'Não encontrado.'});
+  let b='';q.on('data',d=>{b+=d;if(b.length>5000)q.destroy()});
+  q.on('end',()=>{
+    let m;try{m=JSON.parse(b)}catch{return J(400,{e:'Pedido inválido.'})}
+    const name=clean(m.name,12),key=name.toLowerCase();
+    if(!name)return J(400,{e:'Informe o nome do jogador.'});
+    if(u=='/admin/api/resetpin'){const w=DB.wallets[key];if(!w)return J(404,{e:'Carteira não encontrada.'});w.pin=null;w.fail=0;w.until=0;save();return J(200,{ok:1})}
+    if(u=='/admin/api/credit'){
+      const amt=Math.round(+m.amount*100)/100;
+      if(!isFinite(amt)||amt==0||Math.abs(amt)>100000)return J(400,{e:'Valor inválido.'});
+      const w=DB.wallets[key]||(DB.wallets[key]={n:name,pin:null,bal:0});
+      if(w.bal+amt<0)return J(400,{e:`Saldo insuficiente: ${w.n} tem R$ ${w.bal}.`});
+      w.bal=Math.round((w.bal+amt)*100)/100;
+      DB.log.push({at:Date.now(),n:w.n,d:amt,bal:w.bal,note:clean(m.note,80)});if(DB.log.length>500)DB.log.shift();save();
+      Object.values(rooms).forEach(R=>{if(R.players.some(p=>p.wal===w)){sysMsg(R,`${w.n}: saldo ${amt>0?'adicionado':'ajustado'} (${amt>0?'+':''}R$ ${amt}).`);send(R)}});
+      return J(200,{n:w.n,bal:w.bal});
+    }
+    J(404,{e:'Não encontrado.'});
+  });
+}
 const html=fs.readFileSync(path.join(__dirname,'index.html'));
-const server=http.createServer((q,r)=>{r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});r.end(html)});
+let adminHtml='';try{adminHtml=fs.readFileSync(path.join(__dirname,'admin.html'))}catch{}
+const server=http.createServer((q,r)=>{
+  if(q.url.startsWith('/admin'))return adminHandler(q,r);
+  r.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});r.end(html)});
 const wss=new WebSocketServer({server});
 const clean=(s,n)=>String(s||'').replace(/[<>&"'`]/g,'').trim().slice(0,n);
 const rawSend=(ws,o)=>{if(ws.readyState==1)ws.send(JSON.stringify(o))};
+const note=(p,m)=>p.ws&&rawSend(p.ws,{t:'note',m});
 const err=(ws,m)=>rawSend(ws,{t:'err',m});
 const listRooms=()=>Object.values(rooms).map(R=>({code:R.code,lock:!!R.pass,n:R.players.length,mp:CFG.maxPlayers,playing:R.started&&R.win<0}));
 let lt=null;
@@ -224,17 +274,19 @@ wss.on('connection',ws=>{
       if(R)return;
       const code=String(m.room||'').toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,14);
       if(!code)return err(ws,'Informe um nome para a sala.');
+      const pin=String(m.pin||'');if(pin.length<4||pin.length>12)return err(ws,'Informe seu PIN (4 a 12 caracteres).');
+      const w=auth(clean(m.name,12)||'Jogador',pin);if(typeof w=='string')return err(ws,w);
       let r=rooms[code],fresh=false;
       if(!r){
         if(!m.create)return err(ws,'Essa sala não existe mais.');
         r=rooms[code]={code,pass:clean(m.pass,20),players:[],started:false,win:-1,msg:'Aguardando jogadores.',chat:[],hist:[],rn:0,carry:0,pot0:0};
       }else if(m.create)return err(ws,'Já existe uma sala com esse nome.');
-      let p=r.players.find(x=>!x.bot&&x.tok==m.tok);
+      let p=r.players.find(x=>!x.bot&&x.wal===w);
       if(!p){
         if(r.pass&&clean(m.pass,20)!==r.pass)return err(ws,'Senha incorreta.');
         if(r.started&&r.win<0)return err(ws,'Partida em andamento nessa sala.');
         if(r.players.length>=CFG.maxPlayers)return err(ws,`Mesa cheia (${CFG.maxPlayers} lugares).`);
-        p={n:clean(m.name,12)||'Jogador',tok:m.tok,ws};r.players.push(p);fresh=true;
+        p={n:w.n,tok:m.tok,ws,wal:w};Object.defineProperty(p,'bal',{get:()=>w.bal,set:v=>{w.bal=Math.round(v*100)/100;save()}});r.players.push(p);fresh=true;
       }else{if(p.ws&&p.ws!==ws)p.ws.close();p.ws=ws}
       R=r;me=p;ws.inRoom=true;
       rawSend(ws,{t:'chatlog',log:r.chat});
@@ -253,7 +305,11 @@ wss.on('connection',ws=>{
     if(m.t=='bot'&&host&&over&&R.players.length<CFG.maxPlayers){
       const k=R.players.filter(p=>p.bot).length+1;
       R.players.push({n:'Bot '+k,bot:1});R.started=false;R.win=-1;R.msg='Aguardando jogadores.';send(R);
-    }else if(m.t=='start'&&host&&over&&R.players.length>=2)deal(R);
+    }else if(m.t=='start'&&host&&over&&R.players.length>=2){
+      const poor=R.players.filter(p=>!p.bot&&p.bal<CFG.entry).map(p=>p.n);
+      if(poor.length)sysMsg(R,`Sem saldo para a entrada de R$ ${CFG.entry}: ${poor.join(', ')}. Peça ao administrador para adicionar saldo.`);
+      else deal(R);
+    }
     else if(R.stage=='bet'&&R.started&&R.win<0&&me.st=='u'&&['fold','call','accept'].includes(m.t))bet(R,i,m);
     else if(R.started&&R.win<0&&R.turn==i){
       if(m.t=='draw'&&R.phase=='draw'){draw(R,m.src=='disc'?'disc':'stock');send(R)}
