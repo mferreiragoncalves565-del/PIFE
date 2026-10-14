@@ -207,6 +207,7 @@ async function flush(){
   else{fs.writeFileSync(DB_FILE+'.tmp',t);fs.renameSync(DB_FILE+'.tmp',DB_FILE)}
 }
 const save=()=>{clearTimeout(dbT);dbT=setTimeout(()=>flush().catch(e=>console.error('Erro ao salvar:',e.message)),300)};
+process.on('uncaughtException',e=>console.error('Erro não tratado:',e));process.on('unhandledRejection',e=>console.error('Promessa rejeitada:',e));
 process.on('SIGTERM',()=>flush().catch(()=>{}).finally(()=>process.exit(0)));
 const hp=(pin,salt=crypto.randomBytes(8).toString('hex'))=>salt+':'+crypto.scryptSync(pin,salt,32).toString('hex');
 function auth(name,pin){ // nome + PIN = carteira; primeiro acesso define o PIN
@@ -322,6 +323,7 @@ const cast=(R,o)=>R.players.forEach(p=>p.ws&&rawSend(p.ws,o));
 const sysMsg=(R,text)=>{const e={sys:1,n:'',text};R.chat.push(e);if(R.chat.length>60)R.chat.shift();cast(R,{t:'chat',m:e})};
 
 wss.on('connection',ws=>{
+  ws.on('error',e=>console.error('WS:',e.message));
   let R=null,me=null;
   rawSend(ws,{t:'rooms',list:listRooms()});
   function leave(){
