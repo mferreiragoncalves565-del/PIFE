@@ -192,8 +192,13 @@ function send(R){
 const crypto=require('crypto'),ADMIN_KEY=process.env.ADMIN_KEY||'';
 const DB_FILE=process.env.DATA_FILE||path.join(__dirname,'data.json');
 let DB={wallets:{},log:[],deps:{}},dbT=null,pool=null;
-if(process.env.DATABASE_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
-  const {Pool}=require('pg'),u=process.env.DATABASE_URL;
+// Supabase: a conexão direta (db.<projeto>.supabase.co) só funciona por IPv6 e o Render não alcança.
+// Se a URL for a direta, troca sozinho para o pooler (IPv4), mantendo a mesma senha.
+let DB_URL=process.env.DATABASE_URL||'';
+{const m=DB_URL.match(/^(postgres(?:ql)?:\/\/)postgres:(.*)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/(.*)$/i);
+ if(m){DB_URL=`${m[1]}postgres.${m[3]}:${m[2]}@${process.env.SUPABASE_POOLER_HOST||'aws-1-sa-east-1.pooler.supabase.com'}:5432/${m[4]}`;console.log('DATABASE_URL direta do Supabase detectada: usando o pooler (IPv4).')}}
+if(DB_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
+  const {Pool}=require('pg'),u=DB_URL;
   pool=new Pool({connectionString:u,max:3,connectionTimeoutMillis:10000,ssl:/localhost|127\.0\.0\.1/.test(u)?false:{rejectUnauthorized:false}});
 }
 async function loadDB(){
@@ -400,4 +405,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
-loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message,'| servidor do banco na URL:',((process.env.DATABASE_URL||'').match(/@([^/:?]+)/)||[])[1]||'(URL sem endereço)');process.exit(1)});
+loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message,'| servidor do banco na URL:',((DB_URL||'').match(/@([^/:?]+)/)||[])[1]||'(URL sem endereço)');process.exit(1)});
