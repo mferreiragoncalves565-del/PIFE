@@ -1,3 +1,4 @@
+require('dns').setDefaultResultOrder('ipv4first'); // prefere IPv4 (o Render não alcança endereços só IPv6)
 const http=require('http'),fs=require('fs'),path=require('path'),{WebSocketServer}=require('ws');
 const RK=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],SU='♠♥♦♣';
 const name=c=>c.j?'Coringa':RK[c.r]+SU[c.s];
@@ -172,10 +173,11 @@ function hint(R,i){
   return b.win?`Descartando <b>${name(h[b.i])}</b> você bate!`:`Sugestão: descartar <b>${name(h[b.i])}</b>. Ficaria com <b>${b.cv} de 9</b> cartas em jogos.`;
 }
 function view(R,i){
+  const study=R.players.every((p,k)=>k==i||p.bot); // modo estudo só em treino: todos os outros jogadores são bots
   return{t:'state',code:R.code,started:R.started,me:i,
     players:R.players.map(p=>({n:p.n,bot:!!p.bot,off:!p.bot&&!p.ws,c:p.h?p.h.length:0,st:p.st||'',bal:p.bal||0})),
     hand:R.players[i].h||[],top:R.disc&&topCard(R),stock:R.stock?R.stock.length:0,
-    turn:R.turn,phase:R.phase,win:R.win,msg:R.msg,hint:hint(R,i),
+    turn:R.turn,phase:R.phase,win:R.win,msg:R.msg,study:study,hint:study?hint(R,i):'',
     melds:R.win>=0&&!R.fw?part(R.players[R.win].h):null,
     stage:R.stage||'',call:R.call||null,ent:CFG.entry,min:CFG.minCall,max:CFG.maxCall,chips:CFG.chips,dep:{on:GATE.on,min:CFG.minDeposit,max:CFG.maxDeposit},mp:CFG.maxPlayers,
     pot0:R.pot0||0,calls:calls(R)||0,carry:R.carry||0,hist:R.hist.slice(-8)};
@@ -398,4 +400,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
-loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message);process.exit(1)});
+loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message,'| servidor do banco na URL:',((process.env.DATABASE_URL||'').match(/@([^/:?]+)/)||[])[1]||'(URL sem endereço)');process.exit(1)});

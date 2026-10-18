@@ -8,7 +8,8 @@
 <style>
 :root{--bg:#1c130d;--wood:#7a4a28;--felt:#1d5a4f;--felt2:#14413a;--cream:#f4ead2;--red:#b3262e;--gold:#e5b94e;--mute:#c9bda3;--panel:#2a1d14}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(ellipse at top,#2b1c12,var(--bg));color:var(--cream);font:15px/1.4 Georgia,'Times New Roman',serif;min-height:100vh}
+body{margin:0;background:#0b0604;color:var(--cream);font:15px/1.4 Georgia,'Times New Roman',serif;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 42%,#000000d9 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg font-family='Georgia,DejaVu Sans,serif' font-size='26' fill='%23ffd76a' fill-opacity='.045' text-anchor='middle'%3E%3Ctext x='35' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='105' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='70' y='116'%3E%E2%99%A3%3C/text%3E%3Ctext x='0' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='140' y='116'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),radial-gradient(ellipse 62% 42% at 50% 0%,#ffd76a2e,transparent 72%),radial-gradient(ellipse 52% 36% at 50% 50%,#19d3a121,transparent 72%),radial-gradient(circle at 6% 22%,#19d3a126,transparent 30%),radial-gradient(circle at 94% 78%,#b3262e38,transparent 32%),radial-gradient(circle at 92% 10%,#ffd76a1f,transparent 26%),linear-gradient(180deg,#170d08,#090504)}
 main{max-width:1000px;margin:0 auto;padding:10px}
 [hidden]{display:none!important}
 input[type=text],input[type=password],select,button{font:inherit;border-radius:8px;border:0;padding:8px 12px}
@@ -28,13 +29,58 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
 .room small{display:block;color:var(--mute)}.room>div:last-child{display:flex;gap:6px}.room input{width:110px;padding:6px 8px}.room button{margin:0;width:auto;padding:6px 14px}
 .mute{color:var(--mute)}
 .head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.head svg{width:52px;height:52px}.head .word{font-size:34px}
-.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0;color:var(--mute)}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}.top .head{margin:0;margin-right:auto}
+.rpill{display:inline-flex;align-items:center;gap:9px;padding:8px 14px;border-radius:999px;color:var(--mute);font:600 13px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;background:linear-gradient(180deg,#262626,#0b0b0b);border:1px solid #ffd76a44;box-shadow:0 0 12px #ffd76a1f,0 4px 8px #0008}
+.rpill b{color:var(--gold);font-weight:800;letter-spacing:.08em}.rpill svg{color:var(--gold)}.rpill .sep{width:1px;height:14px;background:#ffffff2e}
+.rpill .live{width:8px;height:8px;border-radius:50%;background:#3cf0a0;box-shadow:0 0 8px 2px #3cf0a099}
+.tools{display:flex;gap:8px}
+.tb{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;background:#ffffff10;color:var(--cream);font:600 13px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;border:1px solid #ffd76a33;transition:border-color .15s,box-shadow .15s,background .15s}
+.tb svg{color:var(--gold);flex:none}.tb:hover:not(:disabled){background:#ffffff1c;border-color:#ffd76acc;box-shadow:0 0 12px #ffd76a55}
+.tb.out svg{color:#ff9d9d}.tb.out:hover:not(:disabled){border-color:#ff8a8acc;box-shadow:0 0 12px #ff6b6b55}
+.bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:0 0 6px;padding:10px 14px;border-radius:16px;color:var(--mute);background:linear-gradient(180deg,#2a1d14e6,#1b0f08e6);border:1px solid #ffd76a33;box-shadow:0 0 18px #ffd76a14,0 8px 18px #0006}
+.grp{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.grp.opts{margin-left:auto;gap:18px}
+.play,.addbot{display:inline-flex;align-items:center;gap:8px;border-radius:12px;font:800 14px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;padding:10px 18px}
+.play{background:linear-gradient(180deg,#ffe39a,#e5b94e 60%,#b98a25);color:#2a1d07;border:1px solid #fff0b8;box-shadow:0 0 16px #ffd76a66,0 4px 8px #0008}
+.play::before{content:"";border-left:10px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent}
+.addbot{background:transparent;color:var(--gold);border:1px solid #ffd76a99}.addbot:hover:not(:disabled){background:#ffd76a1f;box-shadow:0 0 12px #ffd76a55}
+.opt{display:inline-flex;align-items:center;gap:8px;font:600 13px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;color:var(--mute);cursor:pointer}
+.opt select{background:#1b0f08;color:var(--cream);border:1px solid #ffd76a33;border-radius:10px;padding:7px 10px;font:600 13px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.tg{position:relative;width:38px;height:22px;border-radius:999px;background:#ffffff1f;border:1px solid #ffffff2e;transition:background .2s,box-shadow .2s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--cream);box-shadow:0 1px 3px #0009;transition:transform .2s}
+.sw input:checked+.tg{background:#e5b94e;border-color:#fff0b8;box-shadow:0 0 12px #ffd76a88}.sw input:checked+.tg::after{transform:translateX(16px);background:#2a1d07}
+.sw input:focus-visible+.tg{outline:3px solid #fff;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.tg,.tg::after,.tb{transition:none}}
+@media(max-width:820px){.top .head{flex:1 1 100%}.rpill{margin-right:auto}}
+@media(max-width:560px){.tb{padding:10px}.tb span{display:none}.bar{padding:10px}.grp.opts{margin-left:0;gap:12px}.play,.addbot{padding:10px 14px}}
 .game{display:grid;grid-template-columns:1fr 290px;gap:12px}
-.table{position:relative;height:410px;border-radius:50%;background:radial-gradient(ellipse,var(--felt),var(--felt2));border:12px solid var(--wood);margin:6px 0 10px}
-.seat{position:absolute;transform:translate(-50%,-50%);text-align:center;background:#0008;border-radius:10px;padding:4px 8px;min-width:78px;font-size:13px}
-.seat.turn{outline:2px solid var(--gold)}.seat.empty{opacity:.35}.seat.win{background:var(--gold);color:#2a1d07}
-.seat small{display:block;color:var(--mute)}.seat.win small{color:#2a1d07}
-.mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:16px}
+.table{position:relative;isolation:isolate;height:410px;border-radius:999px;margin:52px 34px 62px;border:0;
+  background:linear-gradient(180deg,#6a4529 0%,#3a2314 45%,#1b0f08 100%);
+  box-shadow:0 36px 40px -14px #000d,0 0 46px 2px #19d3a122,0 2px 0 #8a5d3a inset,0 -8px 14px #0009 inset}
+.table::before{content:"";position:absolute;inset:16px;border-radius:999px;z-index:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80'%3E%3Cdefs%3E%3Cfilter id='b' x='-20%25' y='-40%25' width='140%25' height='180%25'%3E%3CfeGaussianBlur stdDeviation='3'/%3E%3C/filter%3E%3C/defs%3E%3Cg font-family='Montserrat,Avenir Next,Segoe UI,Arial,sans-serif' font-size='64' font-weight='900' text-anchor='middle'%3E%3Ctext x='100' y='58' fill='%23ffd76a' fill-opacity='.45' filter='url(%23b)'%3EPIFE%3C/text%3E%3Ctext x='100' y='58' fill='none' stroke='%23ffe39a' stroke-opacity='.5' stroke-width='1.2'%3EPIFE%3C/text%3E%3C/g%3E%3C/svg%3E") center 62%/36% no-repeat,
+    radial-gradient(ellipse at 50% 38%,#23846a 0%,#1a6150 48%,#0d3a30 100%);
+  box-shadow:0 0 0 3px #0008,0 0 12px 2px #3cf0c433,inset 0 0 46px #000c,inset 0 0 22px #2af0c01f,inset 0 3px 6px #0006}
+.table::after{content:"";position:absolute;inset:44px;border-radius:999px;border:2px solid #ffd76acc;z-index:0;pointer-events:none;box-shadow:0 0 6px #ffd76a99,0 0 18px #e5b94e66,inset 0 0 8px #ffd76a55,inset 0 0 20px #e5b94e22;animation:neon 4.5s ease-in-out infinite}
+.seat{position:absolute;z-index:2;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;font:600 13px/1.15 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif}
+.seat .av{position:relative;z-index:1;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 20px/1 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #0008;
+  background:radial-gradient(circle at 35% 28%,hsl(var(--h) 60% 62%),hsl(var(--h) 55% 26%));border:3px solid #e9dcc0;box-shadow:0 4px 8px #000a}
+.seat .av i{position:absolute;right:-8px;top:-8px;font-style:normal;font-size:15px;filter:drop-shadow(0 1px 1px #000)}
+.seat .np{margin-top:-12px;min-width:98px;padding:14px 10px 5px;text-align:center;border-radius:10px;border:1px solid #ffd76a44;background:linear-gradient(180deg,#262626,#0b0b0b);box-shadow:0 5px 10px #000b,0 0 10px #ffd76a22}
+.seat .np b{display:block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--cream);font-weight:700}
+.seat .np small{display:block;color:var(--mute);font-size:11px;font-weight:500}
+.seat .np .bal{display:block;margin-top:1px;color:var(--gold);font-weight:800;font-variant-numeric:tabular-nums}
+.seat.turn .av{box-shadow:0 0 0 3px var(--gold),0 0 20px 4px #e5b94ecc;animation:vez 1.3s ease-in-out infinite}
+.seat.turn .np{border-color:var(--gold);box-shadow:0 5px 10px #000b,0 0 14px 1px #ffd76a88}
+.seat.win .av{box-shadow:0 0 0 3px var(--gold),0 0 24px 6px #e5b94e}
+.seat.win .np{background:linear-gradient(180deg,#f3d27a,#c8962e);border-color:#fff0b8}.seat.win .np b,.seat.win .np .bal,.seat.win .np small{color:#2a1d07}
+.seat.empty{opacity:.35}
+@keyframes neon{50%{opacity:.72;box-shadow:0 0 4px #ffd76a66,0 0 12px #e5b94e44,inset 0 0 6px #ffd76a44,inset 0 0 14px #e5b94e18}}
+@keyframes vez{50%{box-shadow:0 0 0 3px var(--gold),0 0 8px 1px #e5b94e88}}
+@media(prefers-reduced-motion:reduce){.seat.turn .av,.table::after{animation:none}}
+.mid{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:16px}
+.mid .c{box-shadow:0 3px 8px #000a}.pile .c.b{box-shadow:2px 2px 0 #4a1520,4px 4px 0 #3b0f18,0 9px 12px #000a}
+.pile:disabled{opacity:.92;filter:none;cursor:default}
 .pile{background:none;padding:0;color:var(--cream);font-size:12px;text-align:center;margin:0;width:auto}
 .msg{text-align:center;min-height:2.6em}
 .c{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:64px;background:var(--cream);color:#1a1a1a;border-radius:6px;font:700 18px/1 Georgia,serif;border:2px solid transparent;padding:0}
@@ -68,7 +114,7 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
 #cl p{margin:8px 0;text-align:center}
 .invite{margin-bottom:14px;border-color:var(--gold)}.invite input{margin-bottom:4px}
 @media(max-width:820px){.cols,.game{grid-template-columns:1fr}.chat{height:300px}.word{font-size:52px}}
-@media(max-width:560px){.table{height:350px}.seat{min-width:60px;font-size:11px}.c{width:38px;height:56px;font-size:16px}.chat{height:240px}.hero svg{width:96px;height:96px}.hero .word{font-size:44px}.bar button{padding:6px 10px}}
+@media(max-width:560px){.table{height:350px;margin:46px 14px 56px}.seat{font-size:11px}.seat .av{width:36px;height:36px;font-size:16px}.seat .np{min-width:70px;padding:12px 6px 4px}.seat .np b{max-width:92px}.c{width:38px;height:56px;font-size:16px}.chat{height:240px}.hero svg{width:96px;height:96px}.hero .word{font-size:44px}.bar button{padding:6px 10px}}
 </style>
 </head>
 <body>
@@ -111,13 +157,24 @@ button.chip.on{transform:translateY(-7px);outline:3px solid var(--gold);outline-
   </div>
 </section>
 <section id="gm" hidden>
+  <div class="top">
   <div class="head"><svg><use href="#lg"/></svg><span class="word">PIFE<span>CHAMADO</span></span></div>
+    <div class="rpill" title="Código da sala e jogadores"><i class="live"></i><span>Sala <b id="rc"></b></span><i class="sep"></i><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span id="np"></span></div>
+    <div class="tools">
+      <button class="tb" id="cp" aria-label="Copiar link de convite" title="Copiar link de convite"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 10 18.7l1-1"/></svg><span>Copiar link</span></button>
+      <button class="tb" id="dp" aria-label="Adicionar saldo por Pix" title="Adicionar saldo por Pix"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14.5" r="1.2"/></svg><span>Saldo</span></button>
+      <button class="tb out" id="lv" aria-label="Sair da sala" title="Sair da sala"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sair</span></button>
+    </div>
+  </div>
   <div class="bar">
-    <span>Sala <b id="rc"></b> · <span id="np"></span></span><button class="ghost" id="cp">🔗 Copiar link</button><button class="ghost" id="dp">💰 Adicionar saldo</button>
-    <button id="ab">+ Bot</button><button id="go">Iniciar</button>
-    <label>Ordem <span class="q" title="Como as cartas ficam organizadas na sua mão: na ordem em que você comprou, agrupadas por naipe ou por valor.">ⓘ</span> <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
-    <label><input type="checkbox" id="st" checked> Modo estudo <span class="q" title="Mostra dicas durante a partida: quantas cartas suas já estão em jogos, se vale pegar o descarte e qual carta descartar.">ⓘ</span></label>
-    <button class="ghost" id="lv">Sair da sala</button>
+    <div class="grp">
+      <button class="addbot" id="ab"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4"/><circle cx="12" cy="3.5" r="1"/><circle cx="9" cy="14" r="1.2"/><circle cx="15" cy="14" r="1.2"/></svg>Adicionar bot</button>
+      <button class="play" id="go">Iniciar</button>
+    </div>
+    <div class="grp opts">
+      <label class="opt">Ordem <span class="q" title="Como as cartas ficam organizadas na sua mão: na ordem em que você comprou, agrupadas por naipe ou por valor.">ⓘ</span> <select id="so"><option value="0">de compra</option><option value="1" selected>por naipe</option><option value="2">por valor</option></select></label>
+      <label class="opt sw"><input type="checkbox" id="st" checked><span class="tg"></span>Modo estudo <span class="q" title="Mostra dicas durante a partida: quantas cartas suas já estão em jogos, se vale pegar o descarte e qual carta descartar.">ⓘ</span></label>
+    </div>
   </div>
   <div class="game">
     <div>
@@ -233,8 +290,10 @@ function render(){
     const rel=[...Array(N).keys()].find(k=>Math.round(k*M/N)==s),a=s/M*2*Math.PI;
     const k=rel==null?null:(rel+S.me)%N,p=k==null?null:S.players[k];
     if(!p)continue;
-    tb+=`<div class="seat ${p&&S.started&&S.turn==k&&S.win<0?'turn':''} ${p&&S.win==k?'win':''} ${S.started&&p.st=='f'?'fold':''}" style="left:${50+44*Math.sin(a)}%;top:${50+40*Math.cos(a)}%">`
-      +`${k==0?'👑 ':''}${esc(p.n)}${k==S.me?' (você)':''}${p.bot?' 🤖':''}<small>${S.started?stTxt(p)+(p.off?' · ⚪':''):p.bot?'bot':p.off?'⚪ offline':'🟢 online'}</small><small>saldo ${brl(p.bal)}</small></div>`;
+    const se=t=>Math.sign(t)*Math.pow(Math.abs(t),.77),hue=[...p.n].reduce((h,ch)=>(h*31+ch.charCodeAt(0))%360,0);
+    tb+=`<div class="seat ${S.started&&S.turn==k&&S.win<0?'turn':''} ${S.win==k?'win':''} ${S.started&&p.st=='f'?'fold':''}" style="left:${50+47*se(Math.sin(a))}%;top:${50+50*se(Math.cos(a))}%;--h:${hue}">`
+      +`<div class="av">${esc([...p.n][0].toUpperCase())}${k==0?'<i>👑</i>':p.bot?'<i>🤖</i>':''}</div>`
+      +`<div class="np"><b>${esc(p.n)}${k==S.me?' (você)':''}</b><small>${S.started?stTxt(p)+(p.off?' · ⚪':''):p.bot?'bot':p.off?'⚪ offline':'🟢 online'}</small><span class="bal" title="saldo">${brl(p.bal)}</span></div></div>`;
   }
   if(S.started){
     const can=myTurn&&S.phase=='draw'?'':'disabled';
@@ -252,7 +311,7 @@ function render(){
   $('dc').disabled=sel==null;
   $('hd').classList.toggle('ph',!S.started);if(!S.started)$('hd').textContent='Suas cartas aparecem aqui quando a partida começar.';
   $('ml').innerHTML=S.melds?S.melds.map(g=>'<div>'+g.map(c=>cardH(c,'mini')).join('')+'</div>').join(''):'';
-  $('in').innerHTML=$('st').checked?(S.win>=0?'Fim da rodada. O anfitrião inicia a próxima em "Nova rodada" (entrada de R$ 10,00 para todos).':S.hint):'';
+  const study=!!S.study&&$('st').checked;$('st').closest('label').hidden=!S.study;$('in').hidden=!study;$('in').innerHTML=study?(S.win>=0?'Fim da rodada. O anfitrião inicia a próxima em "Nova rodada" (entrada de R$ 10,00 para todos).':S.hint):'';
   $('pt').hidden=!S.started&&!S.carry;
   $('pt').innerHTML=S.started?`Pote inicial <b>${brl(S.pot0)}</b> · Chamadas <b>${brl(S.calls)}</b> · Prêmio potencial <b>${brl(S.pot0+S.calls)}</b>`
     :`Acumulado para a próxima rodada: <b>${brl(S.carry)}</b>`;
@@ -296,7 +355,7 @@ $('dg').onclick=()=>{const v=+$('da').value;if(!(v>=S.dep.min&&v<=S.dep.max))ret
 $('dcp').onclick=async()=>{try{await navigator.clipboard.writeText($('dcode').value);$('dcp').textContent='✅ Copiado';setTimeout(()=>$('dcp').textContent='Copiar código',1500)}catch{$('dcode').select()}};
 $('cp').onclick=async()=>{
   const u=location.origin+'/?sala='+encodeURIComponent(S.code),t=u+(joined&&joined.pass?'\nSenha: '+joined.pass:'');
-  try{await navigator.clipboard.writeText(t);$('cp').textContent='✅ Link copiado';setTimeout(()=>$('cp').textContent='🔗 Copiar link',1800)}catch{prompt('Copie o convite:',t)}
+  try{await navigator.clipboard.writeText(t);const l=$('cp').querySelector('span');l.textContent='Link copiado!';setTimeout(()=>l.textContent='Copiar link',1800)}catch{prompt('Copie o convite:',t)}
 };
 document.querySelectorAll('.q').forEach(q=>q.onclick=()=>alert(q.title));
 $('so').onchange=()=>S&&render();
