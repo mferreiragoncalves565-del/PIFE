@@ -8,7 +8,7 @@
 <style>
 :root{--bg:#1c130d;--wood:#7a4a28;--felt:#1d5a4f;--felt2:#14413a;--cream:#f4ead2;--red:#b3262e;--gold:#e5b94e;--mute:#c9bda3;--panel:#2a1d14}
 *{box-sizing:border-box}
-body{margin:0;background:#0b0604;color:var(--cream);font:15px/1.4 Georgia,'Times New Roman',serif;min-height:100vh}
+body{margin:0;background:#0b0604;color:var(--cream);font:15px/1.4 'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif;min-height:100vh}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 42%,#000000d9 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg font-family='Georgia,DejaVu Sans,serif' font-size='26' fill='%23ffd76a' fill-opacity='.045' text-anchor='middle'%3E%3Ctext x='35' y='46'%3E%E2%99%A0%3C/text%3E%3Ctext x='105' y='46'%3E%E2%99%A5%3C/text%3E%3Ctext x='70' y='116'%3E%E2%99%A3%3C/text%3E%3Ctext x='0' y='116'%3E%E2%99%A6%3C/text%3E%3Ctext x='140' y='116'%3E%E2%99%A6%3C/text%3E%3C/g%3E%3C/svg%3E"),radial-gradient(ellipse 62% 42% at 50% 0%,#ffd76a2e,transparent 72%),radial-gradient(ellipse 52% 36% at 50% 50%,#19d3a121,transparent 72%),radial-gradient(circle at 6% 22%,#19d3a126,transparent 30%),radial-gradient(circle at 94% 78%,#b3262e38,transparent 32%),radial-gradient(circle at 92% 10%,#ffd76a1f,transparent 26%),linear-gradient(180deg,#170d08,#090504)}
 main{max-width:1000px;margin:0 auto;padding:10px}
 [hidden]{display:none!important}
@@ -81,6 +81,11 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
 .mid{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:16px}
 .mid .c{box-shadow:0 3px 8px #000a}.pile .c.b{box-shadow:2px 2px 0 #4a1520,4px 4px 0 #3b0f18,0 9px 12px #000a}
 .pile:disabled{opacity:.92;filter:none;cursor:default}
+.potc{position:absolute;z-index:2;left:50%;top:21%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
+.potc .stk{display:flex;flex-direction:column-reverse;align-items:center}
+.potc .ch{width:34px;height:13px;border-radius:50%;margin-top:-8px;border:1px solid #0007;background:repeating-linear-gradient(90deg,#f4ead2 0 5px,transparent 5px 10px),#b3262e;box-shadow:0 2px 0 #5a0f15,0 4px 6px #0008}
+.potc .ch:nth-child(even){background:repeating-linear-gradient(90deg,#2a1d07 0 5px,transparent 5px 10px),#e5b94e;box-shadow:0 2px 0 #8a6a1a,0 4px 6px #0008}
+.potc b{padding:3px 12px;border-radius:999px;background:#0b0b0bcc;border:1px solid #ffd76a88;color:var(--gold);font-size:13px;box-shadow:0 0 12px #ffd76a55}
 .pile{background:none;padding:0;color:var(--cream);font-size:12px;text-align:center;margin:0;width:auto}
 .msg{text-align:center;min-height:2.6em}
 .c{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:64px;background:var(--cream);color:#1a1a1a;border-radius:6px;font:700 18px/1 Georgia,serif;border:2px solid transparent;padding:0}
@@ -277,9 +282,14 @@ const brl=v=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,max
 const stTxt=p=>S.stage=='bet'?({u:'decidindo…','in':'na disputa',f:'desistiu'}[p.st]||''):p.st=='f'?'desistiu':p.c+' cartas';
 let callV=0;
 const CC=['#e9e2cf','#3b82c4','#2e9d5f','#2b2b2b','#b3262e'],chipH=(v,i,tag='span',cls='')=>`<${tag} class="chip ${cls}" data-v="${v}" style="--cc:${CC[i]||'#e5b94e'};--tc:${i==0?'#1a1a1a':'#fff'}">${v}</${tag}>`;
+const T0=document.title;
+function turnAlert(){try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.frequency.setValueAtTime(660,t);o.frequency.setValueAtTime(880,t+.12);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.15,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.4);o.connect(g).connect(a.destination);o.start();o.stop(t+.4);setTimeout(()=>a.close(),700)}catch{}
+  if(document.hidden)document.title='🔔 Sua vez! · '+T0}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)document.title=T0});
 function render(){
   const N=S.players.length,host=S.me==0,over=!S.started||S.win>=0;
   const myTurn=S.started&&S.win<0&&S.turn==S.me;
+  if(myTurn&&!window._wt)turnAlert();window._wt=myTurn;if(!myTurn)document.title=T0;
   $('rc').textContent=S.code;$('np').textContent=N+'/'+S.mp+' jogadores';
   $('ab').hidden=!(host&&over&&N<S.mp);
   $('go').hidden=!(host&&over);
@@ -297,6 +307,7 @@ function render(){
   }
   if(S.started){
     const can=myTurn&&S.phase=='draw'?'':'disabled';
+    if(S.started){const pot=S.pot0+S.calls;tb+=`<div class="potc"><div class="stk">${'<i class="ch"></i>'.repeat(Math.min(7,1+Math.floor(pot/20)))}</div><b>${brl(pot)}</b></div>`}
     tb+=`<div class="mid"><button class="pile" id="pk" ${can}><span class="c b"></span><br>monte (${S.stock})</button>
       <button class="pile" id="pd" ${can}>${cardH(S.top)}<br>descarte</button></div>`;
   }
