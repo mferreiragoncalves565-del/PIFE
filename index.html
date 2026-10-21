@@ -86,6 +86,25 @@ button:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.6)}button:focus
 .potc .ch{width:34px;height:13px;border-radius:50%;margin-top:-8px;border:1px solid #0007;background:repeating-linear-gradient(90deg,#f4ead2 0 5px,transparent 5px 10px),#b3262e;box-shadow:0 2px 0 #5a0f15,0 4px 6px #0008}
 .potc .ch:nth-child(even){background:repeating-linear-gradient(90deg,#2a1d07 0 5px,transparent 5px 10px),#e5b94e;box-shadow:0 2px 0 #8a6a1a,0 4px 6px #0008}
 .potc b{padding:3px 12px;border-radius:999px;background:#0b0b0bcc;border:1px solid #ffd76a88;color:var(--gold);font-size:13px;box-shadow:0 0 12px #ffd76a55}
+.c.sm{width:38px;height:56px;font-size:16px}.c.sm small{font-size:13px}
+.showdown{max-width:600px;margin:10px auto;padding:12px 14px 14px;border-radius:16px;background:linear-gradient(180deg,#1b1b1bf2,#0b0b0bf2);border:1px solid #ffd76acc;box-shadow:0 0 22px #ffd76a55,0 10px 24px #000a;animation:rise .35s ease-out}
+.showdown h3{margin:0 0 10px;font-size:15px;color:var(--gold);text-align:center}.showdown .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.showdown .gr{display:flex;gap:4px;padding:6px;border-radius:10px;background:#ffffff12}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.rtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.rt{width:auto;flex:0 0 auto;background:#ffffff10;color:var(--cream);border:1px solid #ffd76a33;border-radius:999px;padding:7px 14px;font:600 13px/1 inherit;margin:0}.rt i{font-style:normal;color:var(--gold);margin-left:4px}.rt.on{background:#e5b94e;color:#2a1d07;border-color:#fff0b8;box-shadow:0 0 12px #ffd76a66}.rt.on i{color:#2a1d07}
+.panel .rtabs .rt{width:auto;flex:0 0 auto;margin:0;padding:7px 14px}.panel .rcard .act button{width:auto;margin:0}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.rcard{padding:10px;border-radius:16px;background:linear-gradient(180deg,#2a1d14,#150c07);border:1px solid #ffd76a33;box-shadow:0 8px 18px #0008;display:flex;flex-direction:column;gap:8px}
+.rcard.tr{border-color:#3cf0c488;box-shadow:0 0 14px #3cf0c42a,0 8px 18px #0008}.rcard.pr{border-color:#ffd76acc;box-shadow:0 0 16px #ffd76a44,0 8px 18px #0008}
+.rtop{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--mute)}
+.badge{padding:3px 9px;border-radius:999px;font-weight:800;letter-spacing:.04em}.tr .badge{background:#3cf0c422;color:#7ff5d6;border:1px solid #3cf0c488}.pr .badge{background:#ffd76a22;color:var(--gold);border:1px solid #ffd76acc}
+.mt{position:relative;height:92px;margin:6px 14px;border-radius:999px;background:linear-gradient(180deg,#6a4529,#1b0f08);box-shadow:0 8px 12px -4px #000c}
+.mt::before{content:"";position:absolute;inset:6px;border-radius:999px;background:radial-gradient(ellipse at 50% 38%,#23846a,#0d3a30);box-shadow:inset 0 0 14px #000a}
+.mt em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:900 15px/1 inherit;font-style:normal;color:#ffe39a;letter-spacing:.12em;text-shadow:0 0 8px #ffd76a99}
+.mt s{position:absolute;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border:1px solid #0009;background:#ffffff1f}
+.mt s.hu{background:radial-gradient(circle at 35% 30%,#ffe39a,#b98a25);box-shadow:0 0 8px #ffd76a99}.mt s.bot{background:radial-gradient(circle at 35% 30%,#9ff5e0,#1a8f78);box-shadow:0 0 8px #3cf0c499}
+.rinfo{display:flex;flex-direction:column;gap:2px}.rinfo small{color:var(--mute);font-size:12px}
+.rcard .act{display:flex;gap:6px}.rcard .act input{flex:1;min-width:0}.rcard .act button{flex:1;margin:0}
+@media(prefers-reduced-motion:reduce){.showdown{animation:none}}
 .pile{background:none;padding:0;color:var(--cream);font-size:12px;text-align:center;margin:0;width:auto}
 .msg{text-align:center;min-height:2.6em}
 .c{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:44px;height:64px;background:var(--cream);color:#1a1a1a;border-radius:6px;font:700 18px/1 Georgia,serif;border:2px solid transparent;padding:0}
@@ -245,20 +264,21 @@ $('cr').onclick=()=>{
   if(!r)return alert('Dê um nome para a sala.');
   enter(r,$('rp').value,true);
 };
+let rf='all';
 function drawRooms(){
-  const el=$('rl');
-  if(!rooms.length){el.innerHTML='<p class="mute">Nenhuma sala ainda. Crie a primeira ao lado!</p>';return}
-  el.innerHTML='';
-  rooms.forEach(r=>{
-    const d=document.createElement('div');d.className='room';
-    d.innerHTML=`<div><b></b><small>${r.lock?'🔒 com senha':'🌐 aberta'} · ${r.n}/${r.mp} · ${r.playing?'em jogo':'aguardando'}</small></div>`;
-    d.querySelector('b').textContent=r.code;
-    const act=document.createElement('div');let pw=null;
+  const el=$('rl'),mode=r=>r.ps&&r.ps.some(p=>p.bot)?'t':'p',se=t=>Math.sign(t)*Math.pow(Math.abs(t),.77);
+  el.innerHTML=`<div class="rtabs">${[['all','Todas'],['t','🎓 Treino'],['p','💎 Premium']].map(([k,l])=>`<button class="rt ${rf==k?'on':''}" data-k="${k}">${l}<i>${k=='all'?rooms.length:rooms.filter(r=>mode(r)==k).length}</i></button>`).join('')}</div><div class="rgrid"></div>`;
+  el.querySelectorAll('.rt').forEach(b=>b.onclick=()=>{rf=b.dataset.k;drawRooms()});
+  const g=el.querySelector('.rgrid'),list=rooms.filter(r=>rf=='all'||mode(r)==rf);
+  if(!list.length){g.innerHTML='<p class="mute">Nenhuma sala aqui ainda. Crie a primeira!</p>';return}
+  list.forEach(r=>{
+    const m=mode(r),full=r.n>=r.mp,d=document.createElement('div');d.className='rcard '+(m=='t'?'tr':'pr');
+    const seats=Array.from({length:r.mp},(_,k)=>{const a=Math.PI*2*k/r.mp,c=k<r.n?(r.ps&&r.ps[k]&&r.ps[k].bot?'bot':'hu'):'';return`<s class="${c}" style="left:${50+47*se(Math.sin(a))}%;top:${50+50*se(Math.cos(a))}%"></s>`}).join('');
+    d.innerHTML=`<div class="rtop"><span class="badge">${m=='t'?'🎓 TREINO':'💎 PREMIUM'}</span><span>${r.playing?'● em jogo':'aguardando'}</span></div><div class="mt"><em>${esc(r.code)}</em>${seats}</div><div class="rinfo"><b>${esc(r.code)} ${r.lock?'🔒':''}</b><small>${r.n}/${r.mp} jogadores${r.ent?' · entrada '+brl(r.ent):''}</small></div>`;
+    const act=document.createElement('div');act.className='act';let pw=null;
     if(r.lock){pw=document.createElement('input');pw.type='password';pw.placeholder='Senha';pw.value=pws[r.code]||'';pw.oninput=()=>pws[r.code]=pw.value;act.append(pw)}
-    const b=document.createElement('button');
-    b.textContent=r.playing?'Em jogo':r.n>=r.mp?'Cheia':'Entrar';b.disabled=r.playing||r.n>=r.mp;
-    b.onclick=()=>enter(r.code,pw?pw.value:'');
-    act.append(b);d.append(act);el.append(d);
+    const b=document.createElement('button');b.textContent=r.playing?'Em jogo':full?'Cheia':'Entrar';b.disabled=r.playing||full;b.onclick=()=>enter(r.code,pw?pw.value:'');
+    act.append(b);d.append(act);g.append(d);
   });
 }
 function drawChat(){
@@ -275,7 +295,7 @@ const sendChat=()=>{const t=$('ci').value.trim();if(t){send({t:'chat',text:t});$
 $('cs').onclick=sendChat;
 $('ci').onkeydown=e=>{if(e.key=='Enter')sendChat()};
 
-const cardH=(c,cls='')=>c.j?`<span class="c j ${cls}">★<small>coringa</small></span>`
+const cardH=(c,cls='')=>c.j?`<span class="c j ${cls}">★${cls?'':'<small>coringa</small>'}</span>`
   :`<span class="c ${c.s==1||c.s==2?'r':''} ${cls}">${RK[c.r]}<small>${SU[c.s]}</small></span>`;
 
 const brl=v=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -321,7 +341,7 @@ function render(){
   $('hd').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(myTurn&&S.phase=='discard'){sel=+b.dataset.id;render()}});
   $('dc').disabled=sel==null;
   $('hd').classList.toggle('ph',!S.started);if(!S.started)$('hd').textContent='Suas cartas aparecem aqui quando a partida começar.';
-  $('ml').innerHTML=S.melds?S.melds.map(g=>'<div>'+g.map(c=>cardH(c,'mini')).join('')+'</div>').join(''):'';
+  const wn=S.players[S.win];if(S.melds&&wn){$('ml').className='showdown';$('ml').innerHTML=`<h3>🏆 ${esc(wn.n)} bateu! Confira as cartas</h3><div class="row">${S.melds.map(g=>'<div class="gr">'+g.map(c=>cardH(c,'sm')).join('')+'</div>').join('')}</div>`}else{$('ml').className='melds';$('ml').innerHTML=''}
   const study=!!S.study&&$('st').checked;$('st').closest('label').hidden=!S.study;$('in').hidden=!study;$('in').innerHTML=study?(S.win>=0?'Fim da rodada. O anfitrião inicia a próxima em "Nova rodada" (entrada de R$ 10,00 para todos).':S.hint):'';
   $('pt').hidden=!S.started&&!S.carry;
   $('pt').innerHTML=S.started?`Pote inicial <b>${brl(S.pot0)}</b> · Chamadas <b>${brl(S.calls)}</b> · Prêmio potencial <b>${brl(S.pot0+S.calls)}</b>`

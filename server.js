@@ -194,23 +194,12 @@ const DB_FILE=process.env.DATA_FILE||path.join(__dirname,'data.json');
 let DB={wallets:{},log:[],deps:{}},dbT=null,pool=null;
 // Supabase: a conexão direta (db.<projeto>.supabase.co) só funciona por IPv6 e o Render não alcança.
 // Se a URL for a direta, troca sozinho para o pooler (IPv4), mantendo a mesma senha.
-let DB_URL=(process.env.DATABASE_URL||'').trim().replace(/^["']|["']$/g,''),DB_CFG=null;
-{ // lê a URL por partes (aceita senha com caracteres especiais sem codificar) e corrige o usuário do pooler
-  const m=DB_URL.match(/^postgres(?:ql)?:\/\/([^:@\/]+):(.*)@([^@\/:?]+)(?::(\d+))?\/([^?]*)(?:\?.*)?$/i);
-  if(m){
-    let[,user,pass,host,port,dbn]=m;
-    try{pass=decodeURIComponent(pass)}catch{}
-    const d=host.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
-    if(d){user='postgres.'+d[1];host=process.env.SUPABASE_POOLER_HOST||'aws-1-sa-east-1.pooler.supabase.com';port='5432';console.log('DATABASE_URL direta do Supabase detectada: usando o pooler (IPv4).')}
-    else if(/pooler\.supabase\.com$/i.test(host)&&!user.includes('.')&&process.env.SUPABASE_PROJECT_REF)user+='.'+process.env.SUPABASE_PROJECT_REF;
-    DB_CFG={user,password:pass,host,port:+port||5432,database:dbn||'postgres'};
-    console.log(`Banco: usuário="${user}" host=${host} porta=${DB_CFG.port} senha=${pass.length} caracteres`);
-    if(/pooler\.supabase\.com$/i.test(host)&&!user.includes('.'))console.error('ATENÇÃO: no pooler o usuário deve ser postgres.<ref-do-projeto> (ou defina SUPABASE_PROJECT_REF).');
-  }else if(DB_URL)console.error('DATABASE_URL fora do formato postgresql://usuario:senha@host:porta/banco');
-}
-if(DB_CFG){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
-  const {Pool}=require('pg');
-  pool=new Pool({...DB_CFG,max:3,connectionTimeoutMillis:10000,ssl:/^(localhost|127\.0\.0\.1)$/.test(DB_CFG.host)?false:{rejectUnauthorized:false}});
+let DB_URL=process.env.DATABASE_URL||'';
+{const m=DB_URL.match(/^(postgres(?:ql)?:\/\/)postgres:(.*)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/(.*)$/i);
+ if(m){DB_URL=`${m[1]}postgres.${m[3]}:${m[2]}@${process.env.SUPABASE_POOLER_HOST||'aws-1-sa-east-1.pooler.supabase.com'}:5432/${m[4]}`;console.log('DATABASE_URL direta do Supabase detectada: usando o pooler (IPv4).')}}
+if(DB_URL){ // com DATABASE_URL (Postgres) o saldo sobrevive a reinícios; sem ela usa arquivo local
+  const {Pool}=require('pg'),u=DB_URL;
+  pool=new Pool({connectionString:u,max:3,connectionTimeoutMillis:10000,ssl:/localhost|127\.0\.0\.1/.test(u)?false:{rejectUnauthorized:false}});
 }
 async function loadDB(){
   if(pool){
@@ -336,7 +325,7 @@ const clean=(s,n)=>String(s||'').replace(/[<>&"'`]/g,'').trim().slice(0,n);
 const rawSend=(ws,o)=>{if(ws.readyState==1)ws.send(JSON.stringify(o))};
 const note=(p,m)=>p.ws&&rawSend(p.ws,{t:'note',m});
 const err=(ws,m)=>rawSend(ws,{t:'err',m});
-const listRooms=()=>Object.values(rooms).map(R=>({code:R.code,lock:!!R.pass,n:R.players.length,mp:CFG.maxPlayers,playing:R.started&&R.win<0}));
+const listRooms=()=>Object.values(rooms).map(R=>({code:R.code,lock:!!R.pass,n:R.players.length,mp:CFG.maxPlayers,playing:R.started&&R.win<0,ent:CFG.entry,ps:R.players.map(p=>({n:p.n,bot:!!p.bot}))}));
 let lt=null;
 function pushRooms(){clearTimeout(lt);lt=setTimeout(()=>{const l=listRooms();wss.clients.forEach(c=>{if(!c.inRoom)rawSend(c,{t:'rooms',list:l})})},150)}
 const cast=(R,o)=>R.players.forEach(p=>p.ws&&rawSend(p.ws,o));
@@ -416,4 +405,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>wss.clients.forEach(c=>c.ping()),25000);
 const PORT=process.env.PORT||3000;
-loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message,'| servidor do banco:',DB_CFG?DB_CFG.host:'(URL inválida)','| usuário:',DB_CFG?DB_CFG.user:'-');if(e.code=='28P01')console.error('Dica: senha ou usuário recusados. Copie a URL do Session pooler no Supabase (Connect) e troque só a senha.');process.exit(1)});
+loadDB().then(()=>server.listen(PORT,()=>console.log('Pife online em http://localhost:'+PORT+(GATE.on?' (Pix ativo)':' (Pix desativado)')+(pool?' [Postgres]':' [arquivo local]')))).catch(e=>{console.error('Falha ao iniciar (confira a DATABASE_URL):',e.code||'',e.message,'| servidor do banco na URL:',((DB_URL||'').match(/@([^/:?]+)/)||[])[1]||'(URL sem endereço)');process.exit(1)});
